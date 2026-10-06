@@ -42,12 +42,23 @@ function check(name, cond, extra) {
   await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 
+  /* 等启动完成：轮询 app 自己挂的 __ready 标记，比固定 sleep 稳 */
+  const waitReady = async (ms) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < (ms || 12000)) {
+      if (await evaluate('window.__ready === true') === true) return true;
+      await sleep(120);
+    }
+    return false;
+  };
+
   /* ---------- 1. 旧版单课表数据迁移 ---------- */
   await evaluate(`localStorage.setItem('coursetable.v1', JSON.stringify({
       courses: [{id:'c1',name:'迁移测试课',teacher:'张三',room:'A101',day:1,s:1,e:2,weeks:[1,2,3],color:'#e2647a',note:''}],
       notes: [], settings: { termStart:'2026-09-07', totalWeeks:18, semester:'2025-2026-2', student:'张小同', className:'示例班级', dark:true, showWeekend:false, remind:10, periods: null }
   })); 1`);
-  await send('Page.reload'); await sleep(2200);
+  await send('Page.reload');
+  await waitReady();
   console.log('\n【1】旧版数据迁移');
   check('迁移出 1 份课表', await evaluate('S.tables.length') === 1);
   check('旧课程已带入', await evaluate('S.courses.length') === 1, await evaluate("S.courses[0] && S.courses[0].name"));
@@ -260,22 +271,25 @@ function check(name, cond, extra) {
   await new Promise(r => setTimeout(r, 350));
   check('设置入口打开设置弹层', await evaluate("document.querySelector('#sheetSettings').classList.contains('on')") === true);
   const rootTxt = await evaluate("document.querySelector('#sheetSettings').textContent");
-  check('一级列表分为 5 个模块', await evaluate("document.querySelectorAll('#sheetSettings .setlist .navrow').length") === 5);
+  check('一级列表分为 6 个模块', await evaluate("document.querySelectorAll('#sheetSettings .setlist .navrow').length") === 6);
   check('一级列表含「学期与节次」', rootTxt.indexOf('学期与节次') >= 0);
   check('一级列表含「外观」', rootTxt.indexOf('外观') >= 0);
   check('一级列表含「上课提醒」', rootTxt.indexOf('上课提醒') >= 0);
   check('一级列表含「数据」', rootTxt.indexOf('数据') >= 0);
+  check('一级列表含「检查更新」', rootTxt.indexOf('检查更新') >= 0);
   check('一级列表含「关于」', rootTxt.indexOf('关于') >= 0);
   check('一级列表不再堆具体选项', rootTxt.indexOf('总周数') < 0 && rootTxt.indexOf('导出备份') < 0);
   check('一级列表显示当前状态摘要', /第 \d+ 周 \/ 共 \d+ 周/.test(rootTxt) && /张课程表/.test(rootTxt), rootTxt.replace(/\s+/g, ' ').trim().slice(0, 120));
 
   /* 二级模块：逐个进入 → 校验内容与行数 → 返回一级 */
+  const APP_VER = await evaluate('APP_VERSION');
   const CATS = [
     ['#sheetTerm', '学期与节次', ['总周数', '节次时间']],
     ['#sheetLook', '外观', ['深色模式', '主题色', '界面背景图']],
     ['#sheetRemind', '上课提醒', ['提前提醒']],
     ['#sheetData', '数据', ['导出备份', '从备份恢复', '清空当前课程表']],
-    ['#sheetAbout', '关于', ['v0.1.0', '隐私政策']]
+    ['#sheetUpdate', '检查更新', ['当前版本', '最新版本']],
+    ['#sheetAbout', '关于', ['开源免费', '隐私政策']]
   ];
   for (let i = 0; i < CATS.length; i++) {
     const sel = CATS[i][0], title = CATS[i][1], keys = CATS[i][2];
@@ -293,7 +307,7 @@ function check(name, cond, extra) {
   check('返回键逐层退回（二级→一级）', await evaluate("SHEET_PARENT['#sheetLook']") === '#sheetSettings', await evaluate("String(SHEET_PARENT['#sheetLook'])"));
 
   const about = await evaluate("document.querySelector('#aboutCard').textContent");
-  check('含版本 v0.1.0', about.indexOf('v0.1.0') >= 0, await evaluate('APP_VERSION'));
+  check('含当前版本号', about.indexOf('v' + APP_VER) >= 0, APP_VER);
   check('含开发者 澪露', about.indexOf('澪露') >= 0, await evaluate('DEVELOPER'));
   check('含版权声明', about.indexOf('©') >= 0);
   check('含兼容性说明', about.indexOf('武汉铁路职业技术学院') >= 0);
@@ -312,6 +326,60 @@ function check(name, cond, extra) {
   await evaluate("document.querySelector('#pvBack').click(); 1");
   await sleep(350);
   check('隐私政策可返回「关于」', await evaluate("document.querySelector('#sheetAbout').classList.contains('on')") === true);
+
+  /* ---------- 9.5 检查更新 ---------- */
+  console.log('\n【9.5】检查更新');
+  check('版本比较：0.1.1 > 0.1.0', await evaluate("cmpVersion('0.1.1','0.1.0')") === 1);
+  check('版本比较：相同返回 0', await evaluate("cmpVersion('0.1.0','0.1.0')") === 0);
+  check('版本比较：段数不同也正确', await evaluate("cmpVersion('0.2','0.1.9')") === 1 && await evaluate("cmpVersion('0.1','0.1.0')") === 0);
+
+  // 装一个可切换的 fetch 桩，避免测试真的联网
+  await evaluate(`window.__fetchMode='newer'; window.__fetchLog=[];
+    window.fetch = function (url, opt) {
+      window.__fetchLog.push(String(url));
+      if (window.__fetchMode === 'fail') return Promise.reject(new TypeError('Failed to fetch'));
+      var v = window.__fetchMode === 'newer' ? '9.9.9' : APP_VERSION;
+      return Promise.resolve({ ok: true, status: 200, json: function () {
+        return Promise.resolve({
+          tag_name: 'v' + v,
+          html_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/tag/v' + v,
+          body: '## 更新内容\\n\\n- 修复了**课件**显示\\n- 新增「检查更新」',
+          assets: [{ name: 'QingJian-CourseTable-v' + v + '.apk', size: 11798843,
+                     browser_download_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/download/v' + v + '/a.apk',
+                     digest: 'sha256:abc123' }]
+        });
+      } });
+    }; 1`);
+  await evaluate("showSheet('#sheetUpdate'); document.querySelector('#btnCheckUpdate').click(); 1");
+  await sleep(500);
+  check('发现新版本 → 状态 found', await evaluate('UPD.state') === 'found', await evaluate('UPD.state'));
+  check('界面显示最新版本号', /9\.9\.9/.test(await evaluate("document.querySelector('#upLatest').textContent")), await evaluate("document.querySelector('#upLatest').textContent"));
+  check('更新面板已展开', await evaluate("!document.querySelector('#upCard').classList.contains('hidden')") === true);
+  check('Markdown 说明已清理成纯文本', /修复了课件显示/.test(await evaluate("document.querySelector('#upNotes').textContent")));
+  check('一级列表摘要跟着变', /有新版本/.test(await evaluate("document.querySelector('#smUpdate').textContent")), await evaluate("document.querySelector('#smUpdate').textContent"));
+  check('显示安装包体积与来源', /11\.3 MB|11798843|MB/.test(await evaluate("document.querySelector('#upSize').textContent")), await evaluate("document.querySelector('#upSize').textContent"));
+  check('首选直连 api.github.com', await evaluate("__fetchLog[0]") === 'https://api.github.com/repos/HertaSta/QingJian-CourseTable/releases/latest', await evaluate('String(__fetchLog[0])'));
+
+  await evaluate("window.__fetchMode='same'; document.querySelector('#btnCheckUpdate').click(); 1");
+  await sleep(500);
+  check('版本相同 → 判定已是最新', await evaluate('UPD.state') === 'latest', await evaluate('UPD.state'));
+  check('已是最新时不显示更新面板', await evaluate("document.querySelector('#upCard').classList.contains('hidden')") === true);
+  check('摘要显示已是最新', /已是最新/.test(await evaluate("document.querySelector('#smUpdate').textContent")));
+
+  await evaluate("window.__fetchLog=[]; window.__fetchMode='fail'; document.querySelector('#btnCheckUpdate').click(); 1");
+  await sleep(800);
+  check('全部源失败 → 状态 error', await evaluate('UPD.state') === 'error', await evaluate('UPD.state'));
+  check('失败后改写提示语', /检查失败/.test(await evaluate("document.querySelector('#upHint').textContent")), await evaluate("document.querySelector('#upHint').textContent"));
+  check('镜像按顺序逐个回退', (await evaluate('__fetchLog.length')) === (await evaluate('UPDATE_MIRRORS.length')), await evaluate('__fetchLog.length + "/" + UPDATE_MIRRORS.length'));
+
+  // 网页版没有原生下载能力，应转为打开下载页
+  await evaluate(`window.__opened=[]; window.open=function(u){window.__opened.push(String(u));};
+    window.__fetchLog=[]; window.__fetchMode='newer'; document.querySelector('#btnCheckUpdate').click(); 1`);
+  await sleep(500);
+  await evaluate("document.querySelector('#btnDoUpdate').click(); 1");
+  await sleep(300);
+  check('网页版「下载并安装」转为打开下载页', (await evaluate('__opened.length')) === 1, await evaluate('JSON.stringify(__opened)'));
+  check('下载页指向 release 页面', /releases\/tag\/v9\.9\.9/.test(await evaluate('String(__opened[0])')), await evaluate('String(__opened[0])'));
 
   /* ---------- 10. 运行期错误 ---------- */
   console.log('\n【10】运行期错误');

@@ -113,16 +113,17 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .dcol.we .hline{background:rgba(255,90,95,.05)}
 .dcol.today{background:var(--accent-soft)}
 
-.cc{position:absolute;border-radius:12px;padding:5px 5px 4px;overflow:hidden;display:flex;flex-direction:column;color:#fff;cursor:pointer;
+.cc{position:absolute;border-radius:12px;padding:5px 5px 4px;overflow:hidden;display:flex;flex-direction:column;color:#fff;cursor:pointer;font-size:var(--cc-base,10.5px);
   background:var(--c,#0b8f86);
   background:linear-gradient(158deg,color-mix(in srgb,var(--c,#0b8f86) 84%,#fff) 0%,var(--c,#0b8f86) 56%,color-mix(in srgb,var(--c,#0b8f86) 84%,#000) 100%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 5px 14px rgba(20,10,60,.2),0 1px 3px rgba(0,0,0,.12);transition:transform .12s}
 .cc:active{transform:scale(.96)}
-.cc .nm{font-size:10.5px;font-weight:700;line-height:1.24;word-break:break-all;text-shadow:0 1px 1px rgba(0,0,0,.14);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;flex:0 0 auto}
-.cc .rm{font-size:8.5px;line-height:1.26;margin-top:3px;opacity:.96;letter-spacing:-.2px;flex:0 0 auto;overflow:hidden}
-.cc .rm .rc{display:block;font-weight:600;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 课名 / 教室 / 教师都用 em，外层 .cc 的 font-size 由排版算法按块大小写入 */
+.cc .nm{font-size:1em;font-weight:700;line-height:1.24;word-break:break-all;text-shadow:0 1px 1px rgba(0,0,0,.14);display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;flex:0 0 auto}
+.cc .rm{font-size:.81em;line-height:1.26;margin-top:3px;opacity:.96;letter-spacing:-.2px;flex:0 0 auto;overflow:hidden}
+.cc .rm .rc{display:block;font-weight:600;letter-spacing:-.2px;word-break:break-all;overflow:hidden}
 .cc .rm .rn{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
-.cc .tc{font-size:9px;line-height:1.2;margin-top:auto;padding-top:3px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}
+.cc .tc{font-size:.857em;line-height:1.2;margin-top:auto;padding-top:3px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}
 .cc.spanx .tc{opacity:.94}
 .badge{position:absolute;top:3px;right:3px;font-size:8px;background:rgba(255,255,255,.3);border-radius:5px;padding:0 3px;line-height:13px}
 
@@ -331,6 +332,8 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .pv-p{font-size:12.5px;color:var(--sub);line-height:1.9;margin:0 0 8px}
 .pv-p b{color:var(--text)}
 .pv-note{font-size:11.5px;color:var(--sub2);line-height:1.7;margin-top:18px;padding-top:12px;border-top:1px solid var(--line2)}
+/* 更新说明正文：保留换行，过长时内部滚动 */
+.upnotes{font-size:12.5px;color:var(--sub);line-height:1.85;white-space:pre-wrap;overflow-wrap:break-word;max-height:230px;overflow-y:auto;background:var(--field);border-radius:12px;padding:10px 12px;margin-top:4px}
 .slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:5px;background:var(--line);outline:none;margin:8px 0 2px}
 .slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(var(--sh-tint),.45);border:2.5px solid var(--accent)}
 .frow2{display:flex;gap:8px;margin-top:8px}
@@ -579,6 +582,11 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
         <div class="nt"><b>数据</b><small id="smData">—</small></div>
         <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
       </div>
+      <div class="navrow" data-go="#sheetUpdate">
+        <div class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.6v6.4"/><path d="M9.3 11.3L12 14l2.7-2.7"/></svg></div>
+        <div class="nt"><b>检查更新</b><small id="smUpdate">—</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
       <div class="navrow" data-go="#sheetAbout">
         <div class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.2"/><path d="M12 7.9h.01"/></svg></div>
         <div class="nt"><b>关于</b><small id="smAbout">—</small></div>
@@ -706,6 +714,31 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
   </div>
 </div>
 
+<!-- 设置 · 检查更新 -->
+<div class="sheet cat" id="sheetUpdate">
+  <div class="sh-head">
+    <button class="ibtn" data-back="#sheetSettings" title="返回设置"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="t">检查更新</div>
+    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body">
+    <div class="card">
+      <h3>版本</h3>
+      <div class="row"><span class="k">当前版本</span><span class="muted" id="upCur" style="font-size:13px">—</span></div>
+      <div class="row"><span class="k">最新版本</span><span class="muted" id="upLatest" style="font-size:13px">未检查</span></div>
+      <button class="btn" id="btnCheckUpdate" style="margin-top:12px">检查更新</button>
+      <div class="hint" id="upHint">点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除此之外应用不联网。</div>
+    </div>
+    <div class="card hidden" id="upCard">
+      <h3>更新内容</h3>
+      <div class="upnotes" id="upNotes"></div>
+      <button class="btn" id="btnDoUpdate" style="margin-top:12px">下载并安装</button>
+      <button class="btn sec" id="btnUpdatePage">打开下载页</button>
+      <div class="hint" id="upSize"></div>
+    </div>
+  </div>
+</div>
+
 <!-- 设置 · 关于 -->
 <div class="sheet cat" id="sheetAbout">
   <div class="sh-head">
@@ -828,7 +861,7 @@ const WEEK_CN = ['','星期一','星期二','星期三','星期四','星期五',
 const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.1.1';
 const DEVELOPER = '澪露';
 
 /* ---------------- 状态 ---------------- */
@@ -1194,7 +1227,6 @@ function renderGrid() {
   h += '</div>';
 
   const rowH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--rowh')) || 62;
-  _bm = null;   // 每次重绘量一次真实行高
   for (let d = 1; d <= nDay; d++) {
     let cls = 'dcol';
     if (curWeek === week && d === todayIdx) cls += ' today';
@@ -1217,24 +1249,34 @@ function renderGrid() {
         const w = 100 / n;
         const left = w * i;
         const qr = splitRoom(c.room);
-        const pl = planBlock(height, !!qr.code, !!qr.name, !!c.teacher);
-        let inner = '<div class="nm" style="-webkit-line-clamp:' + pl.nm + '">' + esc(c.name) + '</div>';
-        if (pl.rc || pl.rn > 0) {
-          inner += '<div class="rm">' +
-            (pl.rc ? '<span class="rc">' + esc(qr.code) + '</span>' : '') +
-            (pl.rn > 0 ? '<span class="rn" style="-webkit-line-clamp:' + pl.rn + '">' + esc(qr.name) + '</span>' : '') +
-            '</div>';
-        }
-        if (pl.tc && c.teacher) inner += '<div class="tc">' + esc(c.teacher) + '</div>';
-        h += '<div class="cc' + (span > 1 ? ' spanx' : '') + '" data-id="' + c.id + '" style="top:' + top + 'px;height:' + height + 'px;width:calc(' + w + '% - 4px);left:calc(' + left + '% + 2px);--c:' + (c.color || '#0b8f86') + '">' + inner + '</div>';
+        // 先把三个字段都渲染出来（空的话后面会隐藏），字号与行数在第二遍按块实测后写入
+        h += '<div class="cc' + (span > 1 ? ' spanx' : '') + '" data-id="' + c.id + '" style="top:' + top + 'px;height:' + height + 'px;width:calc(' + w + '% - 4px);left:calc(' + left + '% + 2px);--c:' + (c.color || '#0b8f86') + '">' +
+          '<div class="nm">' + esc(c.name) + '</div>' +
+          '<div class="rm"><span class="rc">' + esc(qr.code) + '</span><span class="rn">' + esc(qr.name) + '</span></div>' +
+          '<div class="tc">' + esc(c.teacher || '') + '</div>' +
+          '</div>';
       });
     });
     h += '</div>';
   }
   $('#gridBody').innerHTML = h;
 
-  $$('#gridBody .cc').forEach(el => {
-    el.addEventListener('click', () => openDetail(el.dataset.id));
+  // 第二遍：块已经排好版，按各自的真实宽高算字号与行数。
+  // 先把所有块的尺寸一次读完（一次布局），再统一写样式，避免逐个读写来回触发重排。
+  const byId = new Map(active.map(c => [c.id, c]));
+  const boxes = $$('#gridBody .cc').map(el => {
+    const r = el.getBoundingClientRect();
+    return { el: el, w: r.width, h: r.height, c: byId.get(el.dataset.id) };
+  });
+  boxes.forEach(b => {
+    if (!b.c) return;
+    b.qr = splitRoom(b.c.room);
+    b.pl = planBlock(b.h, b.w, b.c.name, b.qr, b.c.teacher);
+  });
+  boxes.forEach(b => {
+    if (!b.c) return;
+    applyBlockPlan(b.el, b.pl, b.qr, b.c.teacher);
+    b.el.addEventListener('click', () => openDetail(b.el.dataset.id));
   });
 }
 
@@ -1480,52 +1522,109 @@ function shortRoom(r) {
 }
 
 /* ---- 课程块内容排布 ----
-   块高固定（由节次跨度决定），内容却在字体放大/长课名下超出块高，被裁出半截字。
-   这里先量一次真实行高，再按「放得下才加」的顺序逐项升级，保证：内容一定不溢出、
-   同样高度的块显示同样的信息。 */
-let _bm = null;
-function blockMetrics() {
-  if (_bm) return _bm;
+   块高固定（由节次跨度决定），内容是变的。取舍顺序是：
+   ① 课程名与上课地点优先完整显示；
+   ② 放不下就先缩小字号（基准 10.5px → 最小 70%），而不是直接截断；
+   ③ 到最小字号仍放不下，再按「教师 → 教室名 → 楼栋房号 → 课程名」逐项收。
+   字号只缩不放，保证不同块之间看起来是一致的。
+   基准字号由 CSS 变量 --cc-base 决定（默认 10.5px），改它即可整体缩放。 */
+const CC_BASE = 10.5;
+const CC_SCALES = [1, .95, .9, .85, .8, .75, .7];
+function ccBaseSize() {
+  const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cc-base'));
+  return (v > 0 ? v : CC_BASE);
+}
+let _ccP = null;
+function ccProbe() {
+  if (_ccP) return _ccP;
   const d = document.createElement('div');
   d.className = 'cc';
-  d.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:90px;height:auto';
-  d.innerHTML = '<div class="nm">测</div><div class="rm"><span class="rc">A000</span>' +
-                '<span class="rn" style="-webkit-line-clamp:1">测</span></div><div class="tc">测</div>';
+  d.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;height:auto;overflow:visible;pointer-events:none';
+  d.innerHTML = '<div class="nm"></div><div class="rm"><span class="rc"></span><span class="rn"></span></div><div class="tc"></div>';
   document.body.appendChild(d);
-  const H = s => d.querySelector(s).getBoundingClientRect().height;
-  const cs = getComputedStyle(d);
-  _bm = {
-    nm: H('.nm'), rc: H('.rc'), rn: H('.rn'), tc: H('.tc'),
-    mt: parseFloat(getComputedStyle(d.querySelector('.rm')).marginTop) || 0,
-    pad: (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
-  };
-  d.remove();
-  return _bm;
+  const q = s => d.querySelector(s);
+  /* 探针上解除所有截断，量的才是「完整显示需要多高」 */
+  [q('.nm'), q('.rn'), q('.tc')].forEach(el => {
+    el.style.webkitLineClamp = 'none';
+    el.style.display = 'block';
+    el.style.overflow = 'visible';
+    el.style.whiteSpace = 'normal';
+    el.style.textOverflow = 'clip';
+  });
+  _ccP = { box: d, nm: q('.nm'), rm: q('.rm'), rc: q('.rc'), rn: q('.rn'), tc: q('.tc') };
+  return _ccP;
 }
-function planBlock(height, hasCode, hasRoomName, hasTeacher) {
-  const M = blockMetrics();
-  const avail = height - M.pad - 1.5;   // 留余量，宁可少放一行也不裁字
-  const p = { nm: 1, rc: false, rn: 0, tc: false };
-  const cost = () => p.nm * M.nm +
-    ((p.rc || p.rn > 0) ? M.mt + (p.rc ? M.rc : 0) + p.rn * M.rn : 0) +
-    (p.tc ? M.tc : 0);
-  // 优先级：名称 2 行 → 楼栋房号 → 房间名 1 行 → 教师 → 之后名称与房间名交替加行
-  const steps = [];
-  steps.push(() => { if (p.nm < 2) p.nm = 2; });
-  if (hasCode) steps.push(() => { p.rc = true; });
-  if (hasRoomName) steps.push(() => { if (p.rn < 1) p.rn = 1; });
-  if (hasTeacher) steps.push(() => { p.tc = true; });
-  for (let i = 3; i <= 5; i++) {
-    steps.push(() => { if (p.nm < i) p.nm = i; });
-    if (hasRoomName) steps.push(() => { if (p.rn < i - 1) p.rn = i - 1; });
+function planBlock(height, width, name, qr, teacher) {
+  const P = ccProbe(), box = P.box;
+  const base = ccBaseSize();
+  const cs = getComputedStyle(box);
+  const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  const avail = height - padY - 1.5;                 // 留一点余量，宁可少放一行也不裁字
+  box.style.width = Math.max(30, width) + 'px';
+
+  P.nm.textContent = name || '';
+  P.rc.textContent = qr.code || '';
+  P.rn.textContent = qr.name || '';
+  P.tc.textContent = teacher || '';
+  const hasCode = !!qr.code, hasRoom = !!qr.name, hasTc = !!teacher;
+  const mt = parseFloat(getComputedStyle(P.rm).marginTop) || 0;
+
+  const M = [];
+  for (const s of CC_SCALES) {
+    box.style.fontSize = (base * s) + 'px';
+    const nmH = P.nm.getBoundingClientRect().height;
+    const rcH = hasCode ? P.rc.getBoundingClientRect().height : 0;
+    const rnH = hasRoom ? P.rn.getBoundingClientRect().height : 0;
+    const tcH = hasTc ? P.tc.getBoundingClientRect().height : 0;
+    const nmLh = parseFloat(getComputedStyle(P.nm).lineHeight) || base * s * 1.24;
+    const rnLh = parseFloat(getComputedStyle(P.rn).lineHeight) || base * s * .81 * 1.26;
+    M.push({
+      s: s, nmH: nmH, nmLh: nmLh, nmLines: Math.max(1, Math.round(nmH / nmLh)),
+      rcH: rcH, rnH: rnH, rnLh: rnLh, rnLines: hasRoom ? Math.max(1, Math.round(rnH / rnLh)) : 0, tcH: tcH
+    });
   }
-  if (hasRoomName) steps.push(() => { if (p.rn < 5) p.rn = 5; });
-  for (const s of steps) {
-    const bak = JSON.stringify(p);
-    s();
-    if (cost() > avail) { const o = JSON.parse(bak); p.nm = o.nm; p.rc = o.rc; p.rn = o.rn; p.tc = o.tc; }
+
+  // 从大字号往小试：能完整放下「课程名 + 上课地点」就用这一档；教师放得下才顺带显示
+  // 约定：nm/rn = 0 表示不限行数（-1 同理），rn = 0 且 rc = false 时整块隐藏 .rm
+  for (let i = 0; i < M.length; i++) {
+    const m = M[i];
+    const core = m.nmH + ((hasCode || hasRoom) ? mt + m.rcH + m.rnH : 0);
+    if (core <= avail) {
+      return { base: base, s: m.s, nm: 0, rc: hasCode, rn: hasRoom ? -1 : 0,
+        tc: hasTc && core + (hasTc ? m.tcH : 0) <= avail };
+    }
   }
+
+  // 最小字号都放不下：按优先级逐项削减
+  const m = M[M.length - 1];
+  const p = { base: base, s: m.s, nm: m.nmLines, rc: hasCode, rn: m.rnLines, tc: hasTc };
+  const cost = () => p.nm * m.nmLh +
+    ((p.rc || p.rn > 0) ? mt + (p.rc ? m.rcH : 0) + p.rn * m.rnLh : 0) +
+    (p.tc ? m.tcH : 0);
+  const cuts = [
+    () => { p.tc = false; },
+    () => { if (p.rn > 1) p.rn = 1; },
+    () => { p.rn = 0; },
+    () => { p.rc = false; },
+    () => { if (p.nm > 2) p.nm = 2; },
+    () => { p.nm = 1; }
+  ];
+  for (const cut of cuts) { if (cost() <= avail) break; cut(); }
   return p;
+}
+/* 把算好的排布写回课程块（nm/rn 为 0 表示不限行数；rn = 0 且 rc = false 时隐藏整块 .rm） */
+function applyBlockPlan(el, pl, qr, teacher) {
+  el.style.fontSize = ((pl.base || CC_BASE) * pl.s) + 'px';
+  const nm = el.querySelector('.nm'), rm = el.querySelector('.rm'), rc = el.querySelector('.rc'),
+    rn = el.querySelector('.rn'), tc = el.querySelector('.tc');
+  if (nm) { nm.style.webkitLineClamp = pl.nm > 0 ? pl.nm : 'none'; }
+  if (rm) rm.style.display = (pl.rc || pl.rn !== 0) ? '' : 'none';
+  if (rc) rc.style.display = pl.rc ? '' : 'none';
+  if (rn) {
+    rn.style.display = pl.rn !== 0 ? '' : 'none';
+    rn.style.webkitLineClamp = pl.rn > 0 ? pl.rn : 'none';
+  }
+  if (tc) tc.style.display = (pl.tc && teacher) ? '' : 'none';
 }
 
 /* ---- 解析：通用网格（行=节次，列=星期） ---- */
@@ -2041,8 +2140,190 @@ function renderSettingsRoot() {
   const rm = S.global.remind || 0;
   set('smRemind', rm ? '课前 ' + rm + ' 分钟' : '已关闭');
   set('smData', S.tables.length + ' 张课程表　·　' + S.courses.length + ' 条课程');
+  set('smUpdate', UPD.state === 'found' && UPD.latest ? '有新版本 v' + UPD.latest.version
+    : UPD.state === 'latest' ? '已是最新 v' + APP_VERSION
+      : UPD.state === 'checking' ? '正在检查…' : '当前 v' + APP_VERSION);
   set('smAbout', '版本 v' + APP_VERSION + '　·　' + DEVELOPER);
 }
+
+/* ---------------- 检查更新 ----------------
+   版本信息直接取自本项目的 GitHub Release：在 GitHub 发布一个新 Release，
+   这里就能发现，不需要另外维护版本清单文件。
+   直连 api.github.com 失败时按顺序尝试国内镜像前缀，哪个通用哪个。 */
+const UPDATE_REPO = 'HertaSta/QingJian-CourseTable';
+const UPDATE_API = 'https://api.github.com/repos/' + UPDATE_REPO + '/releases/latest';
+const UPDATE_MIRRORS = [
+  '',                          // 直连
+  'https://ghproxy.net/',
+  'https://gh-proxy.com/',
+  'https://ghfast.top/',
+  'https://hub.gitmirror.com/'
+];
+let UPD = { state: 'idle', latest: null, error: '', source: '' };   // idle | checking | latest | found | downloading | ready | error
+
+function cmpVersion(a, b) {
+  const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+function fmtSize(n) {
+  if (!n) return '';
+  return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+}
+/* Release 说明是 Markdown，这里只做最低限度的清理，保证读起来干净 */
+function plainNotes(md) {
+  return String(md || '')
+    .replace(/\r/g, '')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*[-*]\s+/gm, '· ')
+    .replace(/^>\s?/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+async function fetchJSON(url, ms) {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = setTimeout(() => { if (ctl) ctl.abort(); }, ms || 9000);
+  try {
+    const res = await fetch(url, ctl
+      ? { signal: ctl.signal, cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } }
+      : { cache: 'no-store', headers: { Accept: 'application/vnd.github+json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } finally { clearTimeout(timer); }
+}
+async function fetchLatestRelease(ms) {
+  let lastErr = '网络不可用';
+  for (let i = 0; i < UPDATE_MIRRORS.length; i++) {
+    const p = UPDATE_MIRRORS[i];
+    try {
+      const j = await fetchJSON(p + UPDATE_API, ms);
+      if (!j || !j.tag_name) { lastErr = '返回内容无法识别'; continue; }
+      const apk = (j.assets || []).find(a => /\.apk$/i.test(a.name || '')) || {};
+      return {
+        version: String(j.tag_name).replace(/^v/i, ''),
+        notes: plainNotes(j.body),
+        page: j.html_url || ('https://github.com/' + UPDATE_REPO + '/releases'),
+        assetUrl: apk.browser_download_url || '',
+        assetName: apk.name || '',
+        size: apk.size || 0,
+        sha256: String(apk.digest || '').replace(/^sha256:/, ''),
+        source: p ? (p.replace(/^https?:\/\//, '').replace(/\/$/, '')) : 'github.com'
+      };
+    } catch (e) {
+      lastErr = (e && e.name === 'AbortError') ? '连接超时'
+        : (e && e.message && /^HTTP /.test(e.message)) ? e.message : '无法连接';
+    }
+  }
+  throw new Error(lastErr);
+}
+function renderUpdate() {
+  const set = (id, txt) => { const el = $('#' + id); if (el) el.textContent = txt; };
+  const info = UPD.latest;
+  set('upCur', 'v' + APP_VERSION);
+
+  let last = '未检查';
+  if (UPD.state === 'checking') last = '正在检查…';
+  else if (UPD.state === 'error') last = '检查失败';
+  else if (info && (UPD.state === 'latest' || UPD.state === 'found' || UPD.state === 'downloading' || UPD.state === 'ready')) {
+    last = 'v' + info.version + (UPD.state === 'latest' ? '（已是最新）' : '（有新版本）');
+  }
+  set('upLatest', last);
+
+  const btn = $('#btnCheckUpdate');
+  if (btn) {
+    const busy = UPD.state === 'checking' || UPD.state === 'downloading';
+    btn.disabled = busy;
+    btn.textContent = UPD.state === 'checking' ? '正在检查…' : '检查更新';
+  }
+  const card = $('#upCard');
+  if (card) {
+    const show = !!info && (UPD.state === 'found' || UPD.state === 'downloading' || UPD.state === 'ready');
+    card.classList.toggle('hidden', !show);
+    if (show) {
+      set('upNotes', info.notes || '本版本没有填写更新说明。');
+      set('upSize', [fmtSize(info.size), info.assetName, info.source ? '来源 ' + info.source : ''].filter(Boolean).join('　·　'));
+      const b = $('#btnDoUpdate');
+      if (b) { b.disabled = UPD.state === 'downloading'; b.textContent = UPD.state === 'downloading' ? '正在下载…' : '下载并安装'; }
+    }
+  }
+  const hint = $('#upHint');
+  if (hint) hint.textContent = UPD.state === 'error'
+    ? '检查失败（' + UPD.error + '）。可以稍后重试，也可以用下面的按钮到项目主页手动下载。'
+    : '点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除此之外应用不联网。';
+}
+async function checkUpdate(manual) {
+  if (UPD.state === 'checking' || UPD.state === 'downloading') return;
+  UPD.state = 'checking'; UPD.error = '';
+  renderUpdate(); renderSettingsRoot();
+  try {
+    const info = await fetchLatestRelease(9000);
+    UPD.latest = info;
+    UPD.state = cmpVersion(info.version, APP_VERSION) > 0 ? 'found' : 'latest';
+  } catch (e) {
+    UPD.state = 'error';
+    UPD.error = (e && e.message) || '网络不可用';
+  }
+  renderUpdate(); renderSettingsRoot();
+  if (!manual) return;
+  if (UPD.state === 'latest') toast('已是最新版本 v' + APP_VERSION);
+  else if (UPD.state === 'found') toast('发现新版本 v' + UPD.latest.version);
+  else toast('检查更新失败：' + UPD.error, 3500);
+}
+function openUpdatePage() {
+  const url = (UPD.latest && UPD.latest.page) || ('https://github.com/' + UPDATE_REPO + '/releases');
+  window.open(url, '_blank');
+}
+async function downloadUpdate() {
+  if (UPD.state === 'downloading') return;
+  const info = UPD.latest;
+  if (!info || !info.assetUrl) { toast('没有找到可下载的安装包'); return; }
+  const C = window.Capacitor;
+  const FS = C && C.Plugins && C.Plugins.Filesystem;
+  const OP = C && C.Plugins && C.Plugins.FileOpener;
+  if (!FS || !FS.downloadFile) { openUpdatePage(); return; }   // 网页版装不了 APK，只能给下载页
+
+  UPD.state = 'downloading'; UPD.error = ''; renderUpdate();
+  const name = 'qingjian-update.apk';
+  // 国内镜像放在前面，GitHub 直连放最后
+  const urls = UPDATE_MIRRORS.filter(Boolean).map(p => p + info.assetUrl).concat([info.assetUrl]);
+  let lastErr = '下载失败';
+  for (const url of urls) {
+    try {
+      const r = await FS.downloadFile({ url: url, path: name, directory: 'CACHE' });
+      const uri = (r && r.path) || '';
+      if (!uri) { lastErr = '下载未返回文件'; continue; }
+      // 镜像可能返回错误页，用体积核对一下拿到的确实是安装包
+      const st = await FS.stat({ path: name, directory: 'CACHE' });
+      if (info.size && st && st.size && Math.abs(st.size - info.size) > 1024) {
+        lastErr = '下载的文件不完整';
+        try { await FS.deleteFile({ path: name, directory: 'CACHE' }); } catch (_) { }
+        continue;
+      }
+      UPD.state = 'ready'; renderUpdate(); renderSettingsRoot();
+      if (OP && OP.open) {
+        await OP.open({ filePath: uri, contentType: 'application/vnd.android.package-archive' });
+        toast('已下载完成，按系统提示安装即可', 3000);
+      } else {
+        toast('已下载到应用缓存目录', 3000);
+      }
+      return;
+    } catch (e) {
+      lastErr = (e && e.message) ? String(e.message) : '下载失败';
+    }
+  }
+  UPD.state = 'found'; UPD.error = lastErr;
+  renderUpdate(); renderSettingsRoot();
+  toast('下载失败：' + lastErr + '，可用「打开下载页」手动下载', 4000);
+}
+$('#btnCheckUpdate').onclick = () => checkUpdate(true);
+$('#btnDoUpdate').onclick = downloadUpdate;
+$('#btnUpdatePage').onclick = openUpdatePage;
 
 /* ---------------- 多课程表 ---------------- */
 function tableRowsHTML() {
@@ -2134,7 +2415,7 @@ function renderAbout() {
       '© 2026 ' + DEVELOPER + '　保留所有权利。<br>' +
       '本软件为开源软件，允许自由使用、修改与分发，请保留本版权声明。<br>' +
       '<b style="color:var(--text)">兼容性：</b>当前版本 v' + APP_VERSION + ' 仅适配「武汉铁路职业技术学院」教务系统导出的课程表；其他学校格式可能解析不全，可在导入时手动映射列。<br>' +
-      '离线运行：不联网、不上传、不收集任何个人信息，所有数据只保存在本机。' +
+      '联网说明：日常使用不联网，数据只保存在本机。仅当你主动点「检查更新」时，才会向 GitHub 查询本项目的版本信息。' +
     '</div>' +
     '<div class="lk" id="btnPrivacy">' +
       '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.3-2.9 7.8-7 9-4.1-1.2-7-4.7-7-9V6z"/><path d="M9.3 12.2l2 2 3.4-3.6"/></svg>' +
@@ -2149,24 +2430,29 @@ function renderPrivacy() {
   const el = $('#pvBody');
   if (!el) return;
   el.innerHTML =
-    '<p class="pv-p">本政策说明「清笺课程表」（以下简称「本应用」）如何处理你的信息。<b>本应用不联网、不收集、不上传任何个人信息，所有数据只保存在你自己的设备上。</b></p>' +
+    '<p class="pv-p">本政策说明「清笺课程表」（以下简称「本应用」）如何处理你的信息。<b>本应用不收集、不上传任何个人信息，所有数据只保存在你自己的设备上。</b>除你主动点「检查更新」外，本应用不发起任何网络请求。</p>' +
     '<div class="pv-h">一、我们收集哪些信息</div>' +
-    '<p class="pv-p">不收集。本应用没有账号体系，不需要手机号、邮箱或任何实名信息，也没有埋点统计、广告或行为分析。</p>' +
+    '<p class="pv-p">不收集。本应用没有账号体系，不需要手机号、邮箱或任何实名信息，也没有埋点统计、广告或行为分析。检查更新时只读取本项目的公开版本信息，不发送任何与你有关的内容。</p>' +
     '<div class="pv-h">二、你的数据保存在哪里</div>' +
     '<p class="pv-p">全部保存在本机：课程表、个人资料、头像、背景图与主题设置只写入设备本地存储；安卓版会额外写入本应用的私有目录，用途仅是防止系统回收后数据丢失。这些内容不会离开你的设备。</p>' +
     '<div class="pv-h">三、用到的权限及用途</div>' +
-    '<p class="pv-p"><b>相册 / 文件</b>：只有你主动点「从相册选择头像 / 背景图」「导入 Excel」「从备份恢复」时，才会读取你选中的那一个文件，不会扫描或上传其他文件。<br>' +
+    '<p class="pv-p"><b>网络</b>：只有你主动点「检查更新」时，才会连接 GitHub 查询本项目的公开发布记录（当前版本号、最新版本号、下载地址），不会上传设备信息、账号或任何课程数据。除此之外应用不发起网络请求。<br>' +
+    '<b>相册 / 文件</b>：只有你主动点「从相册选择头像 / 背景图」「导入 Excel」「从备份恢复」时，才会读取你选中的那一个文件，不会扫描或上传其他文件。<br>' +
+    '<b>安装未知应用</b>：仅用于在你点「下载并安装」后拉起系统安装器，安装的只能是本应用自身的新版本；本应用不读取、不修改任何已安装应用。<br>' +
     '<b>通知</b>：只有在你开启「上课提醒」后用于弹出本地提醒，可随时关闭。<br>' +
     '除此之外，本应用不申请定位、通讯录、短信、通话等任何权限。</p>' +
-    '<div class="pv-h">四、第三方</div>' +
-    '<p class="pv-p">本应用不含任何第三方 SDK、统计工具或广告。导出图片 / 日历 / 备份文件时会调起系统分享面板，是否发给其他应用完全由你决定。</p>' +
-    '<div class="pv-h">五、数据的删除</div>' +
+    '<div class="pv-h">四、联网与检查更新</div>' +
+    '<p class="pv-p">本应用不联网也能完整使用。唯一会联网的功能是「设置 → 检查更新」，它在你点击时向 GitHub 发出一次只读请求，取回本项目的版本信息与安装包下载地址。请求中不包含你的身份、设备标识或课程数据；国内网络下会按顺序尝试若干个公共镜像站，这些镜像站同样只会收到这一个版本查询请求。</p>' +
+    '<p class="pv-p">更新包下载完成后，是否安装完全由你决定。本应用不会在后台自动检查或自动安装更新。</p>' +
+    '<div class="pv-h">五、第三方</div>' +
+    '<p class="pv-p">本应用不含任何第三方 SDK、统计工具或广告。除「检查更新」会访问 GitHub 及其公共镜像外，不与其他服务器通信。导出图片 / 日历 / 备份文件时会调起系统分享面板，是否发给其他应用完全由你决定。</p>' +
+    '<div class="pv-h">六、数据的删除</div>' +
     '<p class="pv-p">你可以随时在应用内用「清空当前课程表」「移除头像」「恢复默认背景」删除对应内容；卸载本应用会一并清除本机保存的全部数据。</p>' +
-    '<div class="pv-h">六、未成年人</div>' +
+    '<div class="pv-h">七、未成年人</div>' +
     '<p class="pv-p">本应用面向在校学生，因不收集任何个人信息，故不存在对未成年人个人信息的收集、使用或画像。</p>' +
-    '<div class="pv-h">七、政策更新</div>' +
+    '<div class="pv-h">八、政策更新</div>' +
     '<p class="pv-p">本政策如有变更，会随新版本一同更新，并在「设置 → 关于 → 隐私政策」中展示。</p>' +
-    '<div class="pv-h">八、联系我们</div>' +
+    '<div class="pv-h">九、联系我们</div>' +
     '<p class="pv-p">本应用为开源软件，如有疑问或建议，欢迎通过项目开源仓库的 Issue 反馈。</p>' +
     '<div class="pv-note">最后更新：2026 年 10 月 6 日　·　适用于清笺课程表 v' + APP_VERSION + '</div>';
 }
@@ -2980,6 +3266,7 @@ function applyNativeTheme() {
   try { localStorage.setItem('__probe', '1'); localStorage.removeItem('__probe'); } catch (e) { storable = false; }
   if (!storable && !isNative()) setTimeout(() => toast('当前打开方式无法保存数据。建议用在线链接打开，或添加到手机主屏幕后使用。', 6500), 1500);
   if (!had) setTimeout(() => { openImport(); }, 500);
+  window.__ready = true;                  // 启动完成的标记，供自动化测试等待
   mirrorToNative();                       // 首次运行也先落一份盘，之后随时可恢复
 })();
 

@@ -3,6 +3,7 @@
    ① isNative() 判定       ② 导出走 Filesystem+Share 而不是 <a download>
    ③ 返回键分层处理        ④ 状态栏跟着主题色变
    ⑤ 数据持久化：localStorage 被系统回收后，能从 App 私有文件恢复
+   ⑥ 选图走系统相册        ⑦ 检查更新：镜像优先下载 + 拉起系统安装器
    用法: node dev/native-test.js [url]
 */
 const { spawn } = require('child_process');
@@ -43,6 +44,29 @@ window.Capacitor = {
         window.__calls.push(['Filesystem.readFile', o.path, o.directory]);
         if (o.directory === 'DATA' && window.__vfs[o.path] != null) return Promise.resolve({ data: window.__vfs[o.path] });
         return Promise.reject(new Error('File does not exist'));
+      },
+      downloadFile: function (o) {
+        var q = window.__dlQueue || [];
+        var step = q.length ? q.shift() : { size: window.__dlSize || 0 };
+        window.__calls.push(['Filesystem.downloadFile', o.url, o.path, o.directory]);
+        window.__lastDlSize = step.size || 0;
+        if (step.fail) return Promise.reject(new Error('镜像不可用'));
+        return Promise.resolve({ path: 'file:///data/user/0/com.reiro.qingjian/cache/' + o.path });
+      },
+      stat: function (o) {
+        window.__calls.push(['Filesystem.stat', o.path, o.directory]);
+        return Promise.resolve({ size: window.__lastDlSize || 0 });
+      },
+      deleteFile: function (o) {
+        window.__calls.push(['Filesystem.deleteFile', o.path, o.directory]);
+        return Promise.resolve();
+      }
+    },
+    FileOpener: {
+      open: function (o) {
+        window.__calls.push(['FileOpener.open', o.filePath, o.contentType]);
+        if (window.__openReject) return Promise.reject(new Error(window.__openReject));
+        return Promise.resolve();
       }
     },
     Share: {
@@ -98,11 +122,20 @@ window.Capacitor = {
     return r.result.result.value;
   };
   const pressBack = () => evaluate("(Capacitor.Plugins.App._ls.backButton||[]).forEach(function(f){f();}); 1");
+  /* 等启动完成：轮询 app 自己挂的 __ready 标记，避免固定 sleep 抖动 */
+  const waitReady = async (ms) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < (ms || 15000)) {
+      if (await evaluate('window.__ready === true') === true) return true;
+      await sleep(150);
+    }
+    return false;
+  };
 
   await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable');
   await send('Page.addScriptToEvaluateOnNewDocument', { source: FAKE });
   await send('Page.reload');
-  await sleep(2600);
+  await waitReady();
 
   console.log('\n【1】原生环境识别');
   check('识破在安卓 App 里运行', await evaluate('isNative()') === true);
@@ -197,7 +230,7 @@ window.Capacitor = {
   await evaluate('localStorage.clear(); 1');
   await send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__vfs = ' + vfs + ';' });
   await send('Page.reload');
-  await sleep(2600);
+  await waitReady();
   check('重启后 localStorage 仍为空', await evaluate("localStorage.getItem('coursetable.v1')") === null);
   check('从私有文件恢复了昵称', await evaluate('S.profile.nickname') === '回收测试');
   check('从私有文件恢复了签名', await evaluate('S.profile.signature') === 'sig-9');
@@ -230,7 +263,62 @@ window.Capacitor = {
   check('插件不可用时回退到文件选择', await evaluate('window.__inputClicks') === 1, String(await evaluate('window.__inputClicks')));
   await evaluate("window.__pickReject = null; hideSheet(); 1");
 
-  console.log('\n【8】运行期错误');
+  /* ---------- 8. 检查更新：原生下载 + 拉起系统安装器 ---------- */
+  console.log('\n【8】检查更新：原生下载 + 拉起系统安装器');
+  const APSIZE = 11798843;
+  await evaluate(`window.__dlQueue=[]; window.__dlSize=` + APSIZE + `; window.__lastDlSize=0; window.__openReject=null;
+    window.__fetchLog=[];
+    window.fetch=function(u){ window.__fetchLog.push(String(u));
+      return Promise.resolve({ ok:true, status:200, json:function(){ return Promise.resolve({
+        tag_name:'v9.9.9',
+        html_url:'https://github.com/HertaSta/QingJian-CourseTable/releases/tag/v9.9.9',
+        body:'## 更新\\n\\n- 测试用说明',
+        assets:[{ name:'QingJian-CourseTable-v9.9.9.apk', size:` + APSIZE + `,
+                  browser_download_url:'https://github.com/HertaSta/QingJian-CourseTable/releases/download/v9.9.9/a.apk',
+                  digest:'sha256:deadbeef' }] }); } });
+    }; 1`);
+  await evaluate("hideSheet(); switchTab('me'); showSheet('#sheetUpdate'); document.querySelector('#btnCheckUpdate').click(); 1");
+  await sleep(600);
+  check('安卓端能发现新版本', await evaluate('UPD.state') === 'found', await evaluate('UPD.state'));
+
+  // ① 正常路径：镜像优先 → 下载 → 校验体积 → 拉起安装器
+  await evaluate("__calls.length=0; window.__dlQueue=[]; document.querySelector('#btnDoUpdate').click(); 1");
+  await sleep(800);
+  const dl1 = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='Filesystem.downloadFile';}))"));
+  const st1 = await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='Filesystem.stat';}))");
+  const op1 = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='FileOpener.open';}))"));
+  check('走原生 Filesystem 下载', dl1.length === 1, JSON.stringify(dl1));
+  check('国内镜像排在直连之前', /^https:\/\/ghproxy\.net\/https:\/\/github\.com\//.test(dl1[0][1]), dl1[0][1]);
+  check('下载到 CACHE 目录', dl1[0][3] === 'CACHE' && /qingjian-update\.apk$/.test(dl1[0][2]), dl1[0][2] + '/' + dl1[0][3]);
+  check('下载后按体积核对', /\"CACHE\"/.test(st1), st1);
+  check('拉起系统安装器', op1.length === 1 && op1[0][2] === 'application/vnd.android.package-archive', JSON.stringify(op1));
+  check('交给安装器的是下载到的文件', /qingjian-update\.apk$/.test(op1[0][1]), op1[0][1]);
+  check('安装完成后状态置为 ready', await evaluate('UPD.state') === 'ready', await evaluate('UPD.state'));
+
+  // ② 镜像坏了 / 拿到错误页 → 自动换下一个源
+  await evaluate(`__calls.length=0; window.__dlQueue=[{fail:true},{size:512},{size:` + APSIZE + `}];
+    document.querySelector('#btnDoUpdate').click(); 1`);
+  await sleep(900);
+  const dl2 = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='Filesystem.downloadFile';}))"));
+  const del2 = await evaluate("__calls.filter(function(c){return c[0]==='Filesystem.deleteFile';}).length");
+  const op2 = await evaluate("__calls.filter(function(c){return c[0]==='FileOpener.open';}).length");
+  check('第一个源失败会自动换下一个', dl2.length === 3, '尝试了 ' + dl2.length + ' 个地址');
+  check('逐个源按顺序回退', /ghproxy\.net/.test(dl2[0][1]) && /gh-proxy\.com/.test(dl2[1][1]), dl2.map(d => d[1]).join('\n    '));
+  check('体积不符视为失败并删掉半包', del2 === 1, 'deleteFile ' + del2 + ' 次');
+  check('换源后仍能装成功', op2 === 1 && await evaluate('UPD.state') === 'ready');
+
+  // ③ 全部源都失败 → 状态回退到 found，不误拉安装器
+  await evaluate(`__calls.length=0; window.__dlSize=0; UPD.state='found';
+    window.__dlQueue=[{fail:true},{fail:true},{fail:true},{fail:true},{fail:true}];
+    document.querySelector('#btnDoUpdate').click(); 1`);
+  await sleep(1000);
+  check('所有源都失败时状态回到 found', await evaluate('UPD.state') === 'found', await evaluate('UPD.state'));
+  check('失败时不误拉安装器', await evaluate("__calls.filter(function(c){return c[0]==='FileOpener.open';}).length") === 0);
+  check('失败原因写进 UPD.error', (await evaluate('String(UPD.error)')).length > 0, await evaluate('String(UPD.error)'));
+
+  await evaluate("hideSheet(); 1");
+
+  console.log('\n【9】运行期错误');
   const real = errs.filter(e => !/favicon|net::ERR_FILE|Failed to load resource/i.test(e));
   check('无脚本异常', real.length === 0, real.slice(0, 3).join(' | '));
 

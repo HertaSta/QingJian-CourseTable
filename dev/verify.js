@@ -4,8 +4,8 @@ const os = require('os'), path = require('path');
 
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const PORT = 9334;
-const URL_ = process.argv[2] || 'http://127.0.0.1:8765/%E8%AF%BE%E7%A8%8B%E8%A1%A8.html';
-const userDir = path.join(os.tmpdir(), 'edge-verify-profile');
+const URL_ = process.argv[2] || 'http://127.0.0.1:8765/%E6%B8%85%E7%AC%BA%E8%AF%BE%E7%A8%8B%E8%A1%A8.html';
+const userDir = path.join(os.tmpdir(), 'edge-verify-' + process.pid + '-' + Date.now());
 const proc = spawn(EDGE, ['--headless=new', '--disable-gpu', '--no-first-run',
   '--remote-debugging-port=' + PORT, '--user-data-dir=' + userDir, URL_], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));

@@ -10,6 +10,24 @@ const URL_ = process.argv[2] || 'http://127.0.0.1:8765/_demo.html';
 const OUT = process.argv[3] || 'D:/项目归档/CourseTable';
 const DPR = 3, VW = 390, VH = 844;
 
+// 「检查更新」截图用的假响应：让页面以为 GitHub 上发布了更高的 v0.1.2
+const REL = {
+  tag_name: 'v0.1.2',
+  name: 'v0.1.2',
+  body: '## 本次更新\n\n- 设置面板拆成二级分类，一级列表直接显示当前状态\n- 课程块按块高自适应字号，课程名与上课地点优先完整显示\n- 新增「检查更新」，可选国内镜像下载并安装',
+  html_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/tag/v0.1.2',
+  assets: [{
+    name: 'QingJian-CourseTable-v0.1.2.apk',
+    browser_download_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/download/v0.1.2/QingJian-CourseTable-v0.1.2.apk',
+    size: 11795000
+  }]
+};
+const STUB_FETCH = 'window.fetch=function(){return Promise.resolve({ok:true,json:function(){return Promise.resolve(' +
+  JSON.stringify(REL) + ');}});};';
+
+const OPEN_UPDATE = 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[4].click(); ' +
+  STUB_FETCH + ' document.querySelector("#btnCheckUpdate").click();';
+
 const SHOTS = [
   { name: '01_课表',        js: 'hideSheet(); switchTab("sched"); S.view.week=3; renderAll();' },
   { name: '02_课程详情',    js: 'switchTab("sched"); openDetail(S.courses.find(c=>c.name.indexOf("会计信息")<0).id);' },
@@ -26,12 +44,13 @@ const SHOTS = [
   { name: '13_二级_学期与节次', js: 'document.querySelectorAll("#sheetSettings .setlist .navrow")[0].click();' },
   { name: '14_二级_外观',   js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[1].click(); var p=document.querySelector("#themePalette"); if(p) p.scrollIntoView({block:"center"});' },
   { name: '15_二级_数据',   js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[3].click();' },
-  { name: '16_关于与隐私',  js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[4].click();' },
-  { name: '17_隐私政策',    js: 'document.querySelector("#btnPrivacy").click();' },
-  { name: '18_课表深色',    js: 'hideSheet(); S.global.dark=true; applyTheme(); S.view.week=3; switchTab("sched"); renderAll();' },
-  { name: '19_当周无课',    js: 'S.global.dark=false; applyTheme(); S.view.week=17; renderAll();' },
-  { name: '20_主题色_海天',  js: 'hideSheet(); S.global.theme={preset:"haixia",a:"#2b6fd6",b:"#38b6d9",c:"#7fd6c9"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' },
-  { name: '21_主题色_琥珀',  js: 'hideSheet(); S.global.theme={preset:"hupo",a:"#c2701c",b:"#e1a02b",c:"#f0cf6b"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' }
+  { name: '16_二级_检查更新', js: OPEN_UPDATE, wait: 2600 },
+  { name: '17_关于与隐私',  js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[5].click();' },
+  { name: '18_隐私政策',    js: 'document.querySelector("#btnPrivacy").click();' },
+  { name: '19_课表深色',    js: 'hideSheet(); S.global.dark=true; applyTheme(); S.view.week=3; switchTab("sched"); renderAll();' },
+  { name: '20_当周无课',    js: 'S.global.dark=false; applyTheme(); S.view.week=17; renderAll();' },
+  { name: '21_主题色_海天',  js: 'hideSheet(); S.global.theme={preset:"haixia",a:"#2b6fd6",b:"#38b6d9",c:"#7fd6c9"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' },
+  { name: '22_主题色_琥珀',  js: 'hideSheet(); S.global.theme={preset:"hupo",a:"#c2701c",b:"#e1a02b",c:"#f0cf6b"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' }
 ];
 
 const userDir = path.join(os.tmpdir(), 'edge-shot-' + process.pid + '-' + Date.now());
@@ -78,15 +97,24 @@ async function getPageTarget() {
     screenOrientation: { type: 'portraitPrimary', angle: 0 }
   });
   await send('Page.reload', { ignoreCache: false });
-  await sleep(2500);
+  for (let i = 0; i < 80; i++) {
+    const r = await send('Runtime.evaluate', { expression: 'window.__ready === true', returnByValue: true });
+    if (r.result && r.result.result && r.result.result.value === true) break;
+    await sleep(150);
+  }
+  await sleep(400);
 
   const errs = await send('Runtime.evaluate', { expression: 'String(window.__bootError||"")', returnByValue: true });
   console.log('页面内错误:', errs.result && errs.result.result && errs.result.result.value || '(无)');
 
   for (const s of SHOTS) {
     const r = await send('Runtime.evaluate', { expression: s.js, returnByValue: true, awaitPromise: false });
-    if (r.result && r.result.exceptionDetails) console.log('  [动作异常]', s.name, JSON.stringify(r.result.exceptionDetails.text || ''));
-    await sleep(600);
+    if (r.result && r.result.exceptionDetails) {
+      const d = r.result.exceptionDetails;
+      const msg = (d.exception && (d.exception.description || d.exception.value)) || d.text || '';
+      console.log('  [动作异常]', s.name, String(msg).split('\n')[0]);
+    }
+    await sleep(s.wait || 600);
     const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
     const buf = Buffer.from(shot.result.data, 'base64');
     const f = path.join(OUT, 'shot_' + s.name + '.png');

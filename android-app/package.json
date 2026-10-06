@@ -1,6 +1,6 @@
 {
   "name": "qingjian-schedule",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "清笺课程表 - Android 壳工程（Capacitor）",
   "scripts": {
@@ -8,6 +8,7 @@
     "build:apk": "npm run sync-web && cap sync android && cd android && gradlew.bat assembleRelease"
   },
   "dependencies": {
+    "@capacitor-community/file-opener": "^6.0.1",
     "@capacitor/android": "^6.2.0",
     "@capacitor/app": "^6.0.3",
     "@capacitor/camera": "^6.1.3",

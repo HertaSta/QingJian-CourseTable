@@ -6,11 +6,11 @@ const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const PORT = 9339;
 const URL_ = process.argv[2] || 'http://127.0.0.1:8765/index.html';
 const XLSX_FILE = process.argv[3] || process.env.COURSE_XLSX || '';
-const WEEK = +(process.argv[4] || 5);
+const WEEK = +(process.argv[4] || 0);       // 0 = 自动选课最多的一周
 if (!XLSX_FILE) {
   console.error('用法：node dev/_repro.js <index.html 地址> <课程表.xlsx> [周次]');
   console.error('例：  node dev/_repro.js http://127.0.0.1:8765/index.html ./我的课表.xlsx 3');
-  console.error('课程表路径也可以改用环境变量 COURSE_XLSX 传入。');
+  console.error('周次省略时自动挑课最多的一周；课程表路径也可改用环境变量 COURSE_XLSX 传入。');
   process.exit(1);
 }
 const OUTDIR = path.join(__dirname, '_bugshots');
@@ -58,8 +58,23 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   let shot = await send('Page.captureScreenshot', { format: 'png' });
   fs.writeFileSync(path.join(OUTDIR, 'repro_00_import.png'), Buffer.from(shot.result.data, 'base64'));
 
-  await ev(`IMP.mode='replace'; doImport(); switchTab('sched'); S.view.week=${WEEK}; renderAll(); 1`);
-  await sleep(900);
+  await ev(`IMP.mode='replace'; doImport(); switchTab('sched'); 1`);
+  await sleep(700);
+
+  // 课表里哪一周课最多就验哪一周（termStart 随导入时的「本周是第几周」变化，写死周次容易抽到空白周）
+  const best = await ev(`(function(){var bw=1,bn=-1;
+    for(var w=1;w<=25;w++){var k=S.courses.filter(function(c){return isActive(c,w);}).length;if(k>bn){bn=k;bw=w;}}
+    return JSON.stringify({w:bw,n:bn});})()`);
+  const b = JSON.parse(best);
+  const wk = WEEK || b.w;
+  await ev(`S.view.week=${wk}; renderAll(); 1`);
+  await sleep(600);
+
+  console.log('--- 环境 ---');
+  console.log(await ev(`JSON.stringify({week:S.view.week,courses:S.courses.length,
+    periods:(S.settings.periods||[]).map(p=>p.n).join(','),termStart:S.settings.termStart,totalWeeks:S.settings.totalWeeks,
+    active:S.courses.filter(c=>isActive(c,S.view.week)).length,cc:document.querySelectorAll('#gridBody .cc').length})`));
+  console.log('本周（第 ' + wk + ' 周）显示 ' + b.n + ' 门课');
 
   // 解析结果总览
   const dump = await ev(`JSON.stringify(S.courses.map(c=>({d:c.day,s:c.s,e:c.e,n:c.name,r:c.room,t:c.teacher,w:c.weeks&&c.weeks.length})),null,0)`);
@@ -86,16 +101,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       var topOK = first.t >= cb.top + pt - 0.6;
       var botOK = last.b <= cb.bottom - pb + 0.6;
       var nm=el.querySelector('.nm'), rm=el.querySelector('.rm'), tc=el.querySelector('.tc');
+      var rcEl=el.querySelector('.rc'), rnEl=el.querySelector('.rn');
       var ok = topOK && botOK && spill<=1.5;   // 1.5px 内属小数行高取整，不会碰到字的墨迹
       if(!ok) bad++;
       out.push({ ok:ok, h:Math.round(cb.height*100)/100,
         nm: nm?nm.textContent:null, nmH: nm?Math.round(nm.getBoundingClientRect().height*100)/100:0,
         nmLines:nm?nm.style.webkitLineClamp:null,
-        rc: el.querySelector('.rc')?el.querySelector('.rc').textContent:null,
-        rn: el.querySelector('.rn')?el.querySelector('.rn').textContent:null,
-        rnClamp: el.querySelector('.rn')?el.querySelector('.rn').style.webkitLineClamp:null,
-        rnH: rm?Math.round(rm.getBoundingClientRect().height*100)/100:null,
-        tc: tc?tc.textContent:null,
+        rc: rcEl?rcEl.textContent:null, rcDisp: rcEl?rcEl.style.display:null,
+        rcOver: rcEl?(rcEl.scrollWidth-rcEl.clientWidth):0,
+        rcH: rcEl?Math.round(rcEl.getBoundingClientRect().height*100)/100:0,
+        rn: rnEl?rnEl.textContent:null, rnDisp: rnEl?rnEl.style.display:null,
+        rnClamp: rnEl?rnEl.style.webkitLineClamp:null,
+        rnH: rnEl&&rnEl.style.display!=='none'?Math.round(rnEl.getBoundingClientRect().height*100)/100:0,
+        tc: tc?tc.textContent:null, tcDisp: tc?tc.style.display:null,
         topSlack: Math.round((first.t-(cb.top+pt))*100)/100,
         botSlack: Math.round(((cb.bottom-pb)-last.b)*100)/100,
         spill: Math.round(spill*100)/100, topOK:topOK, botOK:botOK });
@@ -104,25 +122,32 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   })()`;
   async function checkBlocks(label) {
     const m = JSON.parse(await ev(CHECK));
-    console.log('\n=== ' + label + '：' + m.total + ' 块，异常 ' + m.bad + ' 块 ===');
+    console.log('\n=== ' + label + '：' + m.total + ' 块，溢出 ' + m.bad + ' 块 ===');
     m.items.forEach(b => {
       const f = b.ok ? '✓' : '❌';
       console.log(`  ${f} 块高${b.h} 名「${b.nm}」名行${b.nmLines}(实高${b.nmH}) | 房号「${b.rc}」| 房间名「${b.rn}」限${b.rnClamp}行(实高${b.rnH}) | 师「${b.tc}」`);
       if (!b.ok) console.log(`       上留${b.topSlack} 下留${b.botSlack} 内部溢出${b.spill} topOK=${b.topOK} botOK=${b.botOK}`);
     });
+    // 用户要求「优先完整显示课程名与上课地点」→ 统计被截断的块
+    const nmCut = m.items.filter(b => b.nmLines && b.nmLines !== 'none').length;
+    const rcHide = m.items.filter(b => b.rcDisp === 'none').length;
+    const rcCut = m.items.filter(b => b.rcOver > 1).length;
+    const rnCut = m.items.filter(b => b.rnDisp !== 'none' && b.rnClamp && b.rnClamp !== 'none').length;
+    const tcHide = m.items.filter(b => b.tcDisp === 'none').length;
+    console.log(`  摘要：课名截断 ${nmCut}｜房号隐藏 ${rcHide}｜房号截断 ${rcCut}｜房间名截断 ${rnCut}｜教师隐藏 ${tcHide}`);
     return m;
   }
   await checkBlocks('默认字号');
 
-  // 把字体整体放大到 1.3 倍（模拟系统字号调大 / WebView 文本缩放），再验一次
-  await ev(`(function(){var s=document.createElement('style');s.id='zzScale';
-    s.textContent='.cc .nm{font-size:13.65px}.cc .rm{font-size:11.05px}.cc .tc{font-size:11.7px}';
-    document.head.appendChild(s); renderAll(); return 1;})()`);
+  // 把基准字号放大到 1.3 倍（模拟系统字号调大 / WebView 文本缩放）。
+  // 注意必须改 --cc-base 基准值，不能直接给 .cc .nm 等写死 font-size —— 那会覆盖排版
+  // 算法写进 inline 的 font-size，量到的就不是真实结果了。
+  await ev(`(function(){document.documentElement.style.setProperty('--cc-base','13.65px');renderAll();return 1;})()`);
   await sleep(500);
-  const sc = await checkBlocks('字体放大 1.3 倍');
+  const sc = await checkBlocks('基准字号放大 1.3 倍');
   const shot3 = await send('Page.captureScreenshot', { format: 'png' });
   fs.writeFileSync(path.join(OUTDIR, 'repro_02_bigfont.png'), Buffer.from(shot3.result.data, 'base64'));
-  await ev(`document.getElementById('zzScale').remove(); renderAll(); 1`);
+  await ev(`(function(){document.documentElement.style.removeProperty('--cc-base');renderAll();return 1;})()`);
   await sleep(300);
 
   const shot2 = await send('Page.captureScreenshot', { format: 'png' });
