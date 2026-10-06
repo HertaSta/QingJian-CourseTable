@@ -758,7 +758,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
       <h3>更新内容</h3>
       <div class="upnotes" id="upNotes"></div>
       <button class="btn" id="btnDoUpdate" style="margin-top:12px">下载并安装</button>
-      <button class="btn sec" id="btnUpdatePage">打开下载页</button>
+      <button class="btn sec" id="btnUpdatePage">用浏览器下载</button>
       <div class="hint" id="upSize"></div>
     </div>
   </div>
@@ -886,7 +886,7 @@ const WEEK_CN = ['','星期一','星期二','星期三','星期四','星期五',
 const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
-const APP_VERSION = '0.1.3';
+const APP_VERSION = '0.1.4';
 const DEVELOPER = '澪露';
 
 /* ---------------- 状态 ---------------- */
@@ -2274,17 +2274,26 @@ function renderSettingsRoot() {
 /* ---------------- 检查更新 ----------------
    版本信息直接取自本项目的 GitHub Release：在 GitHub 发布一个新 Release，
    这里就能发现，不需要另外维护版本清单文件。
-   直连 api.github.com 失败时按顺序尝试国内镜像前缀，哪个通用哪个。 */
+
+   国内直连 GitHub 很不稳定，下载安装包一律优先走加速镜像，GitHub 直连放最后兜底。
+   加速镜像都是社区公益服务，域名说没就没，所以多留几个、按顺序逐个试。
+   实测中 gh-proxy.com / hub.gitmirror.com 已经不通，排在后面只是「万一哪天又活了」；
+   它们连不上时会很快失败，不会拖慢前面的可用线路。 */
 const UPDATE_REPO = 'HertaSta/QingJian-CourseTable';
 const UPDATE_API = 'https://api.github.com/repos/' + UPDATE_REPO + '/releases/latest';
 const UPDATE_MIRRORS = [
-  '',                          // 直连
-  'https://ghproxy.net/',
-  'https://gh-proxy.com/',
   'https://ghfast.top/',
+  'https://ghproxy.net/',
+  'https://edgeone.gh-proxy.com/',
+  'https://hk.gh-proxy.com/',
+  'https://gh-proxy.com/',
   'https://hub.gitmirror.com/'
 ];
-let UPD = { state: 'idle', latest: null, error: '', source: '' };   // idle | checking | latest | found | downloading | ready | error
+/* 读版本信息要请求 api.github.com，它和 github.com 是两个域名，多数镜像只代理后者。
+   实测 edgeone 这个能把 API 请求也转发过去，所以直连不通时再用它试一次。 */
+const UPDATE_API_HOSTS = ['', 'https://edgeone.gh-proxy.com/'];
+let UPD = { state: 'idle', latest: null, error: '', source: '', progress: 0, line: 0, got: 0, total: 0 };
+// idle | checking | latest | found | downloading | ready | error
 
 function cmpVersion(a, b) {
   const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
@@ -2326,8 +2335,8 @@ async function fetchJSON(url, ms) {
 }
 async function fetchLatestRelease(ms) {
   let lastErr = '网络不可用';
-  for (let i = 0; i < UPDATE_MIRRORS.length; i++) {
-    const p = UPDATE_MIRRORS[i];
+  for (let i = 0; i < UPDATE_API_HOSTS.length; i++) {
+    const p = UPDATE_API_HOSTS[i];
     try {
       const j = await fetchJSON(p + UPDATE_API, ms);
       if (!j || !j.tag_name) { lastErr = '返回内容无法识别'; continue; }
@@ -2374,14 +2383,26 @@ function renderUpdate() {
     card.classList.toggle('hidden', !show);
     if (show) {
       set('upNotes', info.notes || '本版本没有填写更新说明。');
-      set('upSize', [fmtSize(info.size), info.assetName, info.source ? '来源 ' + info.source : ''].filter(Boolean).join('　·　'));
+      // 下载中把这一行换成进度；否则一直显示「正在下载…」会让人以为卡死了
+      if (UPD.state === 'downloading') {
+        const seg = UPD.progress > 0 ? '，已完成 ' + UPD.progress + '%' : '';
+        const sz = UPD.total ? '（' + fmtSize(UPD.got) + ' / ' + fmtSize(UPD.total) + '）' : '';
+        set('upSize', '正在下载' + sz + seg + (UPD.line > 1 ? '　·　已换到第 ' + UPD.line + ' 个线路' : ''));
+      } else {
+        set('upSize', [fmtSize(info.size), info.assetName, info.source ? '来源 ' + info.source : ''].filter(Boolean).join('　·　'));
+      }
       const b = $('#btnDoUpdate');
-      if (b) { b.disabled = UPD.state === 'downloading'; b.textContent = UPD.state === 'downloading' ? '正在下载…' : '下载并安装'; }
+      if (b) {
+        b.disabled = UPD.state === 'downloading';
+        b.textContent = UPD.state === 'downloading'
+          ? ('正在下载' + (UPD.progress > 0 ? ' ' + UPD.progress + '%' : '…'))
+          : (UPD.state === 'ready' ? '重新下载' : '下载并安装');
+      }
     }
   }
   const hint = $('#upHint');
   if (hint) hint.textContent = UPD.state === 'error'
-    ? '检查失败（' + UPD.error + '）。可以稍后重试，也可以用下面的按钮到项目主页手动下载。'
+    ? '检查失败（' + UPD.error + '）。可以稍后重试，也可以用下面的按钮用浏览器下载。'
     : '点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除此之外应用不联网。';
 }
 async function checkUpdate(manual) {
@@ -2402,9 +2423,31 @@ async function checkUpdate(manual) {
   else if (UPD.state === 'found') toast('发现新版本 v' + UPD.latest.version);
   else toast('检查更新失败：' + UPD.error, 3500);
 }
+/* 交给系统浏览器下载。优先给镜像地址——GitHub 直链在国内多数网络打不开。
+   用来兜底：应用内下载走不通时，至少还留一条能用的路。 */
 function openUpdatePage() {
-  const url = (UPD.latest && UPD.latest.page) || ('https://github.com/' + UPDATE_REPO + '/releases');
-  window.open(url, '_blank');
+  const info = UPD.latest;
+  const url = (info && info.assetUrl) ? (UPDATE_MIRRORS[0] + info.assetUrl)
+    : ('https://github.com/' + UPDATE_REPO + '/releases');
+  try { window.open(url, '_blank'); } catch (e) { window.location.href = url; }
+}
+/* 进度事件很密集，节流一下再刷新界面，免得白费力气重排 */
+let _updTick = 0;
+function bumpUpd() {
+  const now = Date.now();
+  if (now - _updTick < 150) return;
+  _updTick = now; renderUpdate();
+}
+/* 把下载好的安装包交给系统安装器。失败时把常见原因讲清楚，别只丢一句「失败」。 */
+async function runInstaller(OP, uri) {
+  const ct = 'application/vnd.android.package-archive';
+  if (!OP || !OP.open) { toast('已下载到应用缓存目录', 3000); return; }
+  try {
+    await OP.open({ filePath: uri, contentType: ct });
+    toast('已下载完成，按系统提示安装即可', 3200);
+  } catch (e) {
+    toast('安装包已下载，但没能自动打开安装器。若系统提示「不允许安装应用」，请到系统设置里允许本应用安装未知应用，再点「重新下载」。', 6000);
+  }
 }
 async function downloadUpdate() {
   if (UPD.state === 'downloading') return;
@@ -2413,47 +2456,63 @@ async function downloadUpdate() {
   const C = window.Capacitor;
   const FS = C && C.Plugins && C.Plugins.Filesystem;
   const OP = C && C.Plugins && C.Plugins.FileOpener;
-  if (!FS || !FS.downloadFile) { openUpdatePage(); return; }   // 网页版装不了 APK，只能给下载页
+  if (!FS || !FS.downloadFile) { openUpdatePage(); return; }   // 网页版装不了 APK，交给浏览器下载
 
-  UPD.state = 'downloading'; UPD.error = ''; renderUpdate();
+  UPD.state = 'downloading'; UPD.error = '';
+  UPD.progress = 0; UPD.line = 0; UPD.got = 0; UPD.total = 0;
+  renderUpdate(); renderSettingsRoot();
+
   const name = 'qingjian-update.apk';
-  // 国内镜像放在前面，GitHub 直连放最后
-  const urls = UPDATE_MIRRORS.filter(Boolean).map(p => p + info.assetUrl).concat([info.assetUrl]);
+  // 镜像优先，GitHub 直连放最后
+  const urls = UPDATE_MIRRORS.map(p => p + info.assetUrl).concat([info.assetUrl]);
+
+  // 原生下载会持续抛 progress 事件，用来显示百分比；拿不到就当没有进度
+  let hProgress = null;
+  try {
+    if (typeof FS.addListener === 'function') {
+      hProgress = await FS.addListener('progress', p => {
+        UPD.got = (p && p.bytes) || 0;
+        UPD.total = (p && p.contentLength) || 0;
+        UPD.progress = UPD.total > 0 ? Math.min(100, Math.round(UPD.got / UPD.total * 100)) : 0;
+        bumpUpd();
+      });
+    }
+  } catch (_) { }
+
   let lastErr = '下载失败';
-  for (const url of urls) {
-    let uri = '';
-    try {
-      const r = await FS.downloadFile({ url: url, path: name, directory: 'CACHE' });
-      uri = (r && r.path) || '';
-      if (!uri) { lastErr = '下载未返回文件'; continue; }
-      // 镜像可能返回错误页，用体积核对一下拿到的确实是安装包
-      const st = await FS.stat({ path: name, directory: 'CACHE' });
-      if (info.size && st && st.size && Math.abs(st.size - info.size) > 1024) {
-        lastErr = '下载的文件不完整';
-        try { await FS.deleteFile({ path: name, directory: 'CACHE' }); } catch (_) { }
+  try {
+    for (let i = 0; i < urls.length; i++) {
+      UPD.line = i + 1; UPD.progress = 0; UPD.got = 0; UPD.total = 0;
+      renderUpdate();
+      let uri = '';
+      try {
+        const r = await FS.downloadFile({ url: urls[i], path: name, directory: 'CACHE', progress: true });
+        uri = (r && r.path) || '';
+        if (!uri) { lastErr = '下载未返回文件'; continue; }
+        // 镜像偶尔会回一个错误页，用体积核对一下拿到的确实是安装包：
+        // 空的或者大小对不上的，一律当成这次线路没成
+        const st = await FS.stat({ path: name, directory: 'CACHE' });
+        const got = Number((st && st.size) || 0);
+        if (!(got > 0) || (info.size > 0 && Math.abs(got - info.size) > 1024)) {
+          lastErr = got > 0 ? '下载的文件不完整' : '下载的文件为空';
+          try { await FS.deleteFile({ path: name, directory: 'CACHE' }); } catch (_) { }
+          continue;
+        }
+      } catch (e) {
+        lastErr = (e && e.message) ? String(e.message) : '下载失败';
         continue;
       }
-    } catch (e) {
-      lastErr = (e && e.message) ? String(e.message) : '下载失败';
-      continue;
+      // 包已经拿到手了：之后即使安装器没拉起来，也不该换线路再下一遍
+      UPD.state = 'ready'; UPD.progress = 100; renderUpdate(); renderSettingsRoot();
+      await runInstaller(OP, uri);
+      return;
     }
-    // 到这里安装包已经拿到手了：之后即使安装器没拉起来，也不该换镜像再下一遍
-    UPD.state = 'ready'; renderUpdate(); renderSettingsRoot();
-    if (OP && OP.open) {
-      try {
-        await OP.open({ filePath: uri, contentType: 'application/vnd.android.package-archive' });
-        toast('已下载完成，按系统提示安装即可', 3000);
-      } catch (e) {
-        toast('安装包已下载，但没能自动打开安装器。可点「打开下载页」手动下载安装。', 4200);
-      }
-    } else {
-      toast('已下载到应用缓存目录', 3000);
-    }
-    return;
+    UPD.state = 'found'; UPD.error = lastErr;
+    renderUpdate(); renderSettingsRoot();
+    toast('下载失败（' + lastErr + '）。可点下面「用浏览器下载」再试一次。', 4200);
+  } finally {
+    if (hProgress) { try { await hProgress.remove(); } catch (_) { } }
   }
-  UPD.state = 'found'; UPD.error = lastErr;
-  renderUpdate(); renderSettingsRoot();
-  toast('下载失败：' + lastErr + '，可用「打开下载页」手动下载', 4000);
 }
 $('#btnCheckUpdate').onclick = () => checkUpdate(true);
 $('#btnDoUpdate').onclick = downloadUpdate;

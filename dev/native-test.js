@@ -60,6 +60,11 @@ window.Capacitor = {
       deleteFile: function (o) {
         window.__calls.push(['Filesystem.deleteFile', o.path, o.directory]);
         return Promise.resolve();
+      },
+      addListener: function (ev, cb) {
+        window.__calls.push(['Filesystem.addListener', ev]);
+        window.__lastProgressCb = cb;
+        return Promise.resolve({ remove: function () { window.__calls.push(['Filesystem.removeListener', ev]); return Promise.resolve(); } });
       }
     },
     FileOpener: {
@@ -308,12 +313,16 @@ window.Capacitor = {
   const st1 = await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='Filesystem.stat';}))");
   const op1 = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='FileOpener.open';}))"));
   check('走原生 Filesystem 下载', dl1.length === 1, JSON.stringify(dl1));
-  check('国内镜像排在直连之前', /^https:\/\/ghproxy\.net\/https:\/\/github\.com\//.test(dl1[0][1]), dl1[0][1]);
+  check('下载优先走镜像而不是直连', dl1[0][1].indexOf(await evaluate('UPDATE_MIRRORS[0]')) === 0, dl1[0][1]);
   check('下载到 CACHE 目录', dl1[0][3] === 'CACHE' && /qingjian-update\.apk$/.test(dl1[0][2]), dl1[0][2] + '/' + dl1[0][3]);
   check('下载后按体积核对', /\"CACHE\"/.test(st1), st1);
   check('拉起系统安装器', op1.length === 1 && op1[0][2] === 'application/vnd.android.package-archive', JSON.stringify(op1));
   check('交给安装器的是下载到的文件', /qingjian-update\.apk$/.test(op1[0][1]), op1[0][1]);
   check('安装完成后状态置为 ready', await evaluate('UPD.state') === 'ready', await evaluate('UPD.state'));
+  const pl1 = await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='Filesystem.addListener'||c[0]==='Filesystem.removeListener';}))");
+  check('下载时注册进度监听、结束后注销', /progress/.test(pl1) && /removeListener/.test(pl1), pl1);
+  await evaluate("window.__lastProgressCb && window.__lastProgressCb({bytes: 5899421, contentLength: 11798843}); 1");
+  check('进度事件换算成百分比', await evaluate('UPD.progress') === 50, String(await evaluate('UPD.progress')));
 
   // ② 镜像坏了 / 拿到错误页 → 自动换下一个源
   await evaluate(`__calls.length=0; window.__dlQueue=[{fail:true},{size:512},{size:` + APSIZE + `}];
@@ -323,13 +332,14 @@ window.Capacitor = {
   const del2 = await evaluate("__calls.filter(function(c){return c[0]==='Filesystem.deleteFile';}).length");
   const op2 = await evaluate("__calls.filter(function(c){return c[0]==='FileOpener.open';}).length");
   check('第一个源失败会自动换下一个', dl2.length === 3, '尝试了 ' + dl2.length + ' 个地址');
-  check('逐个源按顺序回退', /ghproxy\.net/.test(dl2[0][1]) && /gh-proxy\.com/.test(dl2[1][1]), dl2.map(d => d[1]).join('\n    '));
+  check('逐个源按顺序回退', dl2[0][1].indexOf(await evaluate('UPDATE_MIRRORS[0]')) === 0
+    && dl2[1][1].indexOf(await evaluate('UPDATE_MIRRORS[1]')) === 0, dl2.map(d => d[1]).join('\n    '));
   check('体积不符视为失败并删掉半包', del2 === 1, 'deleteFile ' + del2 + ' 次');
   check('换源后仍能装成功', op2 === 1 && await evaluate('UPD.state') === 'ready');
 
   // ③ 全部源都失败 → 状态回退到 found，不误拉安装器
   await evaluate(`__calls.length=0; window.__dlSize=0; UPD.state='found';
-    window.__dlQueue=[{fail:true},{fail:true},{fail:true},{fail:true},{fail:true}];
+    window.__dlQueue=new Array(UPDATE_MIRRORS.length + 1).fill({fail:true});
     document.querySelector('#btnDoUpdate').click(); 1`);
   await sleep(1000);
   check('所有源都失败时状态回到 found', await evaluate('UPD.state') === 'found', await evaluate('UPD.state'));

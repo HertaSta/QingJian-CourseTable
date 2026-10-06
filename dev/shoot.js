@@ -10,16 +10,16 @@ const URL_ = process.argv[2] || 'http://127.0.0.1:8765/_demo.html';
 const OUT = process.argv[3] || 'D:/项目归档/CourseTable';
 const DPR = 3, VW = 390, VH = 844;
 
-// 「检查更新」截图用的假响应：让页面以为 GitHub 上发布了更高的 v0.1.4
-// （当前 App 版本是 0.1.3，这里必须比它高，否则页面会显示「已是最新」）
+// 「检查更新」截图用的假响应：让页面以为 GitHub 上发布了更高的 v0.1.5
+// （当前 App 版本是 0.1.4，这里必须比它高，否则页面会显示「已是最新」）
 const REL = {
-  tag_name: 'v0.1.4',
-  name: 'v0.1.4',
-  body: '## 本次更新\n\n- 设置面板拆成二级分类，一级列表直接显示当前状态\n- 课程块按块高自适应字号，课程名与上课地点优先完整显示\n- 新增「检查更新」，可选国内镜像下载并安装',
-  html_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/tag/v0.1.4',
+  tag_name: 'v0.1.5',
+  name: 'v0.1.5',
+  body: '## 本次更新\n\n- 修复了**课件**显示\n- 新增「检查更新」',
+  html_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/tag/v0.1.5',
   assets: [{
-    name: 'QingJian-CourseTable-v0.1.4.apk',
-    browser_download_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/download/v0.1.4/QingJian-CourseTable-v0.1.4.apk',
+    name: 'QingJian-CourseTable-v0.1.5.apk',
+    browser_download_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/download/v0.1.5/QingJian-CourseTable-v0.1.5.apk',
     size: 11795000
   }]
 };

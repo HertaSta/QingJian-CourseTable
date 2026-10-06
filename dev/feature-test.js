@@ -414,7 +414,7 @@ function check(name, cond, extra) {
   await sleep(800);
   check('全部源失败 → 状态 error', await evaluate('UPD.state') === 'error', await evaluate('UPD.state'));
   check('失败后改写提示语', /检查失败/.test(await evaluate("document.querySelector('#upHint').textContent")), await evaluate("document.querySelector('#upHint').textContent"));
-  check('镜像按顺序逐个回退', (await evaluate('__fetchLog.length')) === (await evaluate('UPDATE_MIRRORS.length')), await evaluate('__fetchLog.length + "/" + UPDATE_MIRRORS.length'));
+  check('检查源按顺序逐个回退', (await evaluate('__fetchLog.length')) === (await evaluate('UPDATE_API_HOSTS.length')), await evaluate('__fetchLog.length + "/" + UPDATE_API_HOSTS.length'));
 
   // 网页版没有原生下载能力，应转为打开下载页
   await evaluate(`window.__opened=[]; window.open=function(u){window.__opened.push(String(u));};
@@ -423,7 +423,7 @@ function check(name, cond, extra) {
   await evaluate("document.querySelector('#btnDoUpdate').click(); 1");
   await sleep(300);
   check('网页版「下载并安装」转为打开下载页', (await evaluate('__opened.length')) === 1, await evaluate('JSON.stringify(__opened)'));
-  check('下载页指向 release 页面', /releases\/tag\/v9\.9\.9/.test(await evaluate('String(__opened[0])')), await evaluate('String(__opened[0])'));
+  check('网页版改用镜像直链下载', /^https:\/\/[^/]+\/https:\/\/github\.com\/.*\/releases\/download\//.test(await evaluate('String(__opened[0])')), await evaluate('String(__opened[0])'));
 
   /* ---------- 9.6 健壮性回归（本轮静默修复的缺陷） ---------- */
   console.log('\n【9.6】健壮性回归');
