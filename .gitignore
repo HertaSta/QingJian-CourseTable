@@ -34,3 +34,4 @@ _test_out.ics
 /_*.png
 /shot_*.png
 *.log
+dev/_bugshots/

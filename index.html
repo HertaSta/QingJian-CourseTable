@@ -50,6 +50,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;height:100%}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{
   background-color:var(--bg-body);
   background-image:var(--bg-img);
@@ -117,11 +118,11 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
   background:linear-gradient(158deg,color-mix(in srgb,var(--c,#0b8f86) 84%,#fff) 0%,var(--c,#0b8f86) 56%,color-mix(in srgb,var(--c,#0b8f86) 84%,#000) 100%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 5px 14px rgba(20,10,60,.2),0 1px 3px rgba(0,0,0,.12);transition:transform .12s}
 .cc:active{transform:scale(.96)}
-.cc .nm{font-size:10.5px;font-weight:700;line-height:1.24;word-break:break-all;text-shadow:0 1px 1px rgba(0,0,0,.14);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
-.cc .rm{font-size:8.5px;line-height:1.26;margin-top:3px;opacity:.96;letter-spacing:-.2px}
-.cc .rm .rc{display:block;font-weight:600;letter-spacing:-.2px;word-break:normal;overflow-wrap:break-word}
-.cc .rm .rn{display:block;word-break:break-all}
-.cc .tc{font-size:9px;line-height:1.2;margin-top:auto;padding-top:3px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc .nm{font-size:10.5px;font-weight:700;line-height:1.24;word-break:break-all;text-shadow:0 1px 1px rgba(0,0,0,.14);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;flex:0 0 auto}
+.cc .rm{font-size:8.5px;line-height:1.26;margin-top:3px;opacity:.96;letter-spacing:-.2px;flex:0 0 auto;overflow:hidden}
+.cc .rm .rc{display:block;font-weight:600;letter-spacing:-.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cc .rm .rn{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
+.cc .tc{font-size:9px;line-height:1.2;margin-top:auto;padding-top:3px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}
 .cc.spanx .tc{opacity:.94}
 .badge{position:absolute;top:3px;right:3px;font-size:8px;background:rgba(255,255,255,.3);border-radius:5px;padding:0 3px;line-height:13px}
 
@@ -1092,6 +1093,7 @@ function renderGrid() {
   h += '</div>';
 
   const rowH = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--rowh')) || 62;
+  _bm = null;   // 每次重绘量一次真实行高
   for (let d = 1; d <= nDay; d++) {
     let cls = 'dcol';
     if (curWeek === week && d === todayIdx) cls += ' today';
@@ -1113,13 +1115,17 @@ function renderGrid() {
         const height = span * rowH - 6;
         const w = 100 / n;
         const left = w * i;
-        const showTeacher = height > 78;
         const qr = splitRoom(c.room);
-        h += '<div class="cc' + (span > 1 ? ' spanx' : '') + '" data-id="' + c.id + '" style="top:' + top + 'px;height:' + height + 'px;width:calc(' + w + '% - 4px);left:calc(' + left + '% + 2px);--c:' + (c.color || '#0b8f86') + '">' +
-          '<div class="nm">' + esc(c.name) + '</div>' +
-          (c.room ? '<div class="rm">' + (qr.code ? '<span class="rc">' + esc(qr.code) + '</span>' : '') + '<span class="rn">' + esc(qr.name) + '</span></div>' : '') +
-          (showTeacher && c.teacher ? '<div class="tc">' + esc(c.teacher) + '</div>' : '') +
-          '</div>';
+        const pl = planBlock(height, !!qr.code, !!qr.name, !!c.teacher);
+        let inner = '<div class="nm" style="-webkit-line-clamp:' + pl.nm + '">' + esc(c.name) + '</div>';
+        if (pl.rc || pl.rn > 0) {
+          inner += '<div class="rm">' +
+            (pl.rc ? '<span class="rc">' + esc(qr.code) + '</span>' : '') +
+            (pl.rn > 0 ? '<span class="rn" style="-webkit-line-clamp:' + pl.rn + '">' + esc(qr.name) + '</span>' : '') +
+            '</div>';
+        }
+        if (pl.tc && c.teacher) inner += '<div class="tc">' + esc(c.teacher) + '</div>';
+        h += '<div class="cc' + (span > 1 ? ' spanx' : '') + '" data-id="' + c.id + '" style="top:' + top + 'px;height:' + height + 'px;width:calc(' + w + '% - 4px);left:calc(' + left + '% + 2px);--c:' + (c.color || '#0b8f86') + '">' + inner + '</div>';
       });
     });
     h += '</div>';
@@ -1370,6 +1376,55 @@ function splitRoom(r) {
 function shortRoom(r) {
   const q = splitRoom(r);
   return (q.code ? q.code + ' ' + q.name : q.name).trim();
+}
+
+/* ---- 课程块内容排布 ----
+   块高固定（由节次跨度决定），内容却在字体放大/长课名下超出块高，被裁出半截字。
+   这里先量一次真实行高，再按「放得下才加」的顺序逐项升级，保证：内容一定不溢出、
+   同样高度的块显示同样的信息。 */
+let _bm = null;
+function blockMetrics() {
+  if (_bm) return _bm;
+  const d = document.createElement('div');
+  d.className = 'cc';
+  d.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:90px;height:auto';
+  d.innerHTML = '<div class="nm">测</div><div class="rm"><span class="rc">A000</span>' +
+                '<span class="rn" style="-webkit-line-clamp:1">测</span></div><div class="tc">测</div>';
+  document.body.appendChild(d);
+  const H = s => d.querySelector(s).getBoundingClientRect().height;
+  const cs = getComputedStyle(d);
+  _bm = {
+    nm: H('.nm'), rc: H('.rc'), rn: H('.rn'), tc: H('.tc'),
+    mt: parseFloat(getComputedStyle(d.querySelector('.rm')).marginTop) || 0,
+    pad: (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)
+  };
+  d.remove();
+  return _bm;
+}
+function planBlock(height, hasCode, hasRoomName, hasTeacher) {
+  const M = blockMetrics();
+  const avail = height - M.pad - 1.5;   // 留余量，宁可少放一行也不裁字
+  const p = { nm: 1, rc: false, rn: 0, tc: false };
+  const cost = () => p.nm * M.nm +
+    ((p.rc || p.rn > 0) ? M.mt + (p.rc ? M.rc : 0) + p.rn * M.rn : 0) +
+    (p.tc ? M.tc : 0);
+  // 优先级：名称 2 行 → 楼栋房号 → 房间名 1 行 → 教师 → 之后名称与房间名交替加行
+  const steps = [];
+  steps.push(() => { if (p.nm < 2) p.nm = 2; });
+  if (hasCode) steps.push(() => { p.rc = true; });
+  if (hasRoomName) steps.push(() => { if (p.rn < 1) p.rn = 1; });
+  if (hasTeacher) steps.push(() => { p.tc = true; });
+  for (let i = 3; i <= 5; i++) {
+    steps.push(() => { if (p.nm < i) p.nm = i; });
+    if (hasRoomName) steps.push(() => { if (p.rn < i - 1) p.rn = i - 1; });
+  }
+  if (hasRoomName) steps.push(() => { if (p.rn < 5) p.rn = 5; });
+  for (const s of steps) {
+    const bak = JSON.stringify(p);
+    s();
+    if (cost() > avail) { const o = JSON.parse(bak); p.nm = o.nm; p.rc = o.rc; p.rn = o.rn; p.tc = o.tc; }
+  }
+  return p;
 }
 
 /* ---- 解析：通用网格（行=节次，列=星期） ---- */
