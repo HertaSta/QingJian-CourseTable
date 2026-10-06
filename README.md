@@ -86,7 +86,7 @@
 
 ### 安卓版
 
-到 [Releases](../../releases/latest) 下载 `QingJian-CourseTable-v0.1.2.apk`。
+到 [Releases](../../releases/latest) 下载 `QingJian-CourseTable-v0.1.3.apk`。
 
 - 需要 **Android 10（API 29）及以上**
 - 安装时系统可能提示「未知来源」，允许即可
