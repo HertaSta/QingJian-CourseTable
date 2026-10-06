@@ -1,0 +1,36 @@
+# ---------- 依赖 ----------
+node_modules/
+
+# ---------- 构建产物 ----------
+build/
+.gradle/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# Capacitor 的复制产物（源头是 android-app/www/，由 npx cap copy 生成）
+android-app/android/app/src/main/assets/public/
+
+# ---------- 签名与本地配置：绝不提交 ----------
+*.jks
+*.keystore
+keystore.properties
+local.properties
+
+# ---------- IDE / 系统 ----------
+.idea/
+*.iml
+*.hprof
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 临时文件 ----------
+_demo.html
+_test_out.ics
+/_*.png
+/shot_*.png
+*.log
