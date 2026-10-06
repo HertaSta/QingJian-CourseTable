@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 """用 icalendar 实跑解析导出的 .ics，核对事件、时间与折行。"""
-import sys, re
+import sys, re, os
 from datetime import datetime, timezone, timedelta
 from icalendar import Calendar
 
-path = sys.argv[1] if len(sys.argv) > 1 else r'D:/项目归档/CourseTable/_test_out.ics'
+# 默认优先核对「真实课表」导出的文件（dev/make-ics.js 生成），没有再退回 feature-test 的合成数据
+_default = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '_real_out.ics')
+if not os.path.exists(_default):
+    _default = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '_test_out.ics')
+path = sys.argv[1] if len(sys.argv) > 1 else _default
+print('核对文件      :', os.path.basename(path))
 raw = open(path, 'rb').read()
 
 print('文件大小      :', len(raw), '字节')
@@ -39,13 +44,37 @@ for e in events[:3]:
     print('     地点      :', str(e.get('LOCATION')))
     print('     描述      :', str(e.get('DESCRIPTION')).replace('\n', ' / '))
 
-# 校验：周一第1大节 08:30 应为北京时间
-mon_course = [e for e in events if str(e.get('SUMMARY')) == '企业财务会计Ⅰ']
-print('企业财务会计Ⅰ :', len(mon_course), '次（课表写的是 1-4,7-8,13,15 共 8 周）')
-w1 = [e for e in mon_course if e.decoded('DTSTART').astimezone(timezone(timedelta(hours=8))).strftime('%m-%d') == '09-07']
-if w1:
-    ds = w1[0].decoded('DTSTART').astimezone(timezone(timedelta(hours=8)))
-    print('第1周日期     : 2026-09-07（周一）', '✓' if ds.strftime('%H:%M') == '08:30' else '✗ 时间=' + ds.strftime('%H:%M'), ds.strftime('%H:%M-%H:%M'))
+# ---- 不变量校验（对任意真实导出都成立，不依赖具体课名 / 周次，避免数据一变就误报）----
+
+# ① 每条事件的时长必须为正：守住 splitRange 在跨度装不下 n 节时算出负数时间的缺陷
+bad_dur = []
+for e in events:
+    ds = e.decoded('DTSTART'); de = e.decoded('DTEND')
+    if de <= ds:
+        bad_dur.append((str(e.get('SUMMARY')), ds.strftime('%Y-%m-%d %H:%M'), de.strftime('%H:%M')))
+print('时长非正的事件:', bad_dur[:3] if bad_dur else '无（全部 DTEND > DTSTART）')
+
+# ② 同一门课、同一时刻不应出现两条：查出重复导出
+seen = {}
+dups = []
+for e in events:
+    k = (str(e.get('SUMMARY')), e.decoded('DTSTART'))
+    if k in seen:
+        dups.append((k[0], k[1].strftime('%Y-%m-%d %H:%M')))
+    seen[k] = 1
+print('重复的事件    :', dups[:3] if dups else '无')
+
+# ③ 样例课程若在，仅作信息展示（不硬编码周次，真实课表同一门课可能分布在多个星期/大节）
+sample = [e for e in events if str(e.get('SUMMARY')) == '企业财务会计Ⅰ']
+if sample:
+    from collections import Counter
+    by_day = Counter()
+    for e in sample:
+        m = re.search(r'星期(\S)', str(e.get('DESCRIPTION')))
+        by_day[m.group(1) if m else '?'] += 1
+    print('企业财务会计Ⅰ :', len(sample), '次，按星期分布', dict(by_day))
+else:
+    print('企业财务会计Ⅰ : 未出现 —— 本次输入不是真实课表导出的数据，跳过样例展示')
 
 # 校验折行：所有物理行 ≤75 字节
 lines = raw.split(b'\r\n')
@@ -56,7 +85,10 @@ print('超 75 字节的行 :', over if over else '无（全部合规）')
 txt = raw.decode('utf-8')
 print('UTF-8 解码    :', '成功，无乱码' if '\ufffd' not in txt else '失败(!)')
 
-# 折行还原后 SUMMARY 应完整
+# 折行还原后，超长字段应能完整拼回（不依赖具体课名）
 joined = re.sub(rb'\r\n ', b'', raw)
-print('折行还原示例  :', '找到完整长课名' if '毛泽东思想和中国特色社会主义理论体系概论'.encode('utf-8') in joined else '未找到(!)')
-print('\n结论：', '全部通过 ✓' if not missing and not over and not w1 == [] else '有问题，见上')
+lost = [str(e.get('SUMMARY')) for e in events
+        if len(str(e.get('SUMMARY')).encode('utf-8')) > 75
+        and str(e.get('SUMMARY')).encode('utf-8') not in joined]
+print('折行还原      :', '所有超长字段都完整' if not lost else '丢失(!) ' + str(lost[:3]))
+print('\n结论：', '全部通过 ✓' if not missing and not over and not lost and not bad_dur and not dups else '有问题，见上')

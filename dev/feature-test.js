@@ -26,11 +26,12 @@ function check(name, cond, extra) {
   if (!t) throw new Error('连不上 DevTools');
   const ws = new WebSocket(t.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
-  let id = 0; const waiters = new Map(); const errs = [];
+  let id = 0; const waiters = new Map(); const errs = []; let _loads = 0;
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
     if (m.method === 'Runtime.exceptionThrown') errs.push(m.params.exceptionDetails.text + ' :: ' + ((m.params.exceptionDetails.exception || {}).description || ''));
     if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') errs.push('[log] ' + m.params.entry.text);
+    if (m.method === 'Page.loadEventFired') _loads++;
     if (m.id && waiters.has(m.id)) { waiters.get(m.id)(m); waiters.delete(m.id); }
   };
   const send = (m, p) => new Promise(r => { const i = ++id; waiters.set(i, r); ws.send(JSON.stringify({ id: i, method: m, params: p || {} })); });
@@ -52,13 +53,25 @@ function check(name, cond, extra) {
     return false;
   };
 
+  /* 重新加载并等「新文档」就绪。
+     注意：Page.reload 返回时导航往往还没开始，此时 __ready 仍是旧文档残留的 true，
+     若直接 waitReady 会立刻通过，断言全部跑在旧页面上（曾导致迁移用例假失败）。
+     所以先主动把旧文档的标记置为 false，再等 loadEventFired；两者任一失效都不影响正确性。 */
+  const reloadAndReady = async () => {
+    const before = _loads;
+    await evaluate('window.__ready = false; 1');
+    await send('Page.reload');
+    const t0 = Date.now();
+    while (_loads === before && Date.now() - t0 < 8000) await sleep(50);
+    return waitReady();
+  };
+
   /* ---------- 1. 旧版单课表数据迁移 ---------- */
   await evaluate(`localStorage.setItem('coursetable.v1', JSON.stringify({
       courses: [{id:'c1',name:'迁移测试课',teacher:'张三',room:'A101',day:1,s:1,e:2,weeks:[1,2,3],color:'#e2647a',note:''}],
       notes: [], settings: { termStart:'2026-09-07', totalWeeks:18, semester:'2025-2026-2', student:'张小同', className:'示例班级', dark:true, showWeekend:false, remind:10, periods: null }
   })); 1`);
-  await send('Page.reload');
-  await waitReady();
+  await reloadAndReady();
   console.log('\n【1】旧版数据迁移');
   check('迁移出 1 份课表', await evaluate('S.tables.length') === 1);
   check('旧课程已带入', await evaluate('S.courses.length') === 1, await evaluate("S.courses[0] && S.courses[0].name"));
@@ -411,6 +424,44 @@ function check(name, cond, extra) {
   await sleep(300);
   check('网页版「下载并安装」转为打开下载页', (await evaluate('__opened.length')) === 1, await evaluate('JSON.stringify(__opened)'));
   check('下载页指向 release 页面', /releases\/tag\/v9\.9\.9/.test(await evaluate('String(__opened[0])')), await evaluate('String(__opened[0])'));
+
+  /* ---------- 9.6 健壮性回归（本轮静默修复的缺陷） ---------- */
+  console.log('\n【9.6】健壮性回归');
+  // 节次拆分：跨度装不下这么多节时不能算出负数时间（曾出现 "-1:-30"）
+  check('常规节次拆分结果不变', await evaluate("JSON.stringify(splitRange('08:30','10:10',2))") === '[["08:30","09:15"],["09:25","10:10"]]', await evaluate("JSON.stringify(splitRange('08:30','10:10',2))"));
+  check('跨度不足时不产生负数时间', String(await evaluate("JSON.stringify(splitRange('08:00','08:30',6))")).indexOf('"-') < 0, await evaluate("JSON.stringify(splitRange('08:00','08:30',6))"));
+  check('起止时间写反也照常拆', await evaluate("JSON.stringify(splitRange('10:00','08:00',2))") === '[["08:00","08:55"],["09:05","10:00"]]', await evaluate("JSON.stringify(splitRange('10:00','08:00',2))"));
+
+  // 自动挑工作表：封面 / 说明页不该被当成课表
+  check('能认出课表所在的工作表', await evaluate("looksLikeSchedule([['','星期一','星期二','星期三','星期四','星期五'],['1','语文','','','','']])") === true);
+  check('封面页不会被当成课表', await evaluate("looksLikeSchedule([['某某学院学生课表'],['学号：2024001']])") === false);
+
+  // 课程块没写 [x-y]节 时，应按所在大节定位，而不是全堆到第 1 大节
+  await evaluate(`analyze([
+    ['示例职业技术学院 同学 学生个人课表'],
+    ['学年学期：2026-2027-1'],
+    ['','星期一','星期二','星期三','星期四','星期五'],
+    ['第一大节 08:30-10:10','','语文\\n张老师(讲师)\\n1-4周\\n实训室A','','',''],
+    ['第二大节 10:30-12:10','','数学\\n李老师(讲师)\\n1-4周\\n实训室B','','','']
+  ], [], 't.xlsx'); 1`);
+  check('无节次标记的课按所在大节定位',
+    await evaluate("JSON.stringify(IMP.result.courses.map(function(c){return c.name+':'+c.s+'-'+c.e;}))") === '["语文:1-2","数学:3-4"]',
+    await evaluate("JSON.stringify(IMP.result.courses.map(function(c){return c.name+':'+c.s+'-'+c.e;}))"));
+
+  // 节次表之外的课程：既不能整门消失，也不能渲染出 undefined
+  await evaluate(`(function(){
+    S.settings.periods = JSON.parse(JSON.stringify(DEFAULT_PERIODS));
+    S.courses = [{ id:'rb1', name:'越界课', teacher:'王老师', room:'A101 实训室', day:1, s:13, e:14, weeks:[1], color:'#22c55e', note:'' }];
+    S.global.showWeekend = true; S.view.week = 1; renderAll(); switchTab('sched'); return 1;
+  })()`);
+  check('节次越界的课仍会画到课表上', await evaluate("document.querySelectorAll('#gridBody .cc').length") === 1);
+  await evaluate("switchTab('today'); 1");
+  check('日程页不出现 undefined', String(await evaluate("document.getElementById('todayList').innerHTML")).indexOf('undefined') < 0);
+
+  // 移除头像属于「立即生效」的操作，应马上落盘
+  await evaluate("S.profile.avatar='data:image/jpeg;base64,AAAA'; save(); renderMe(); switchTab('me'); openProfile(); 1");
+  await evaluate("document.getElementById('pfAvClear').click(); 1");
+  check('移除头像会立刻写入存储', await evaluate("JSON.parse(localStorage.getItem('coursetable.v1')).profile.avatar") === '');
 
   /* ---------- 10. 运行期错误 ---------- */
   console.log('\n【10】运行期错误');

@@ -1063,11 +1063,16 @@ function toast(msg, ms) {
 function toMin(t) { const m = /^(\d{1,2})[:：](\d{2})$/.exec(String(t).trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; }
 function fromMin(m) { m = Math.round(m); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
 function splitRange(s, e, n) {
-  const t0 = toMin(s), t1 = toMin(e);
+  let t0 = toMin(s), t1 = toMin(e);
   if (t0 == null || t1 == null || n < 1) return [];
-  const per = (t1 - t0 - 10 * (n - 1)) / n;
+  if (t1 < t0) { const x = t0; t0 = t1; t1 = x; }      // 起止写反了也照样能拆
+  const total = t1 - t0;
+  let gap = n > 1 ? 10 : 0;
+  let per = n > 1 ? (total - gap * (n - 1)) / n : total;
+  // 跨度装不下这么多节时，先压掉课间间隔再均分，否则会算出负数时间（如 "-1:-30"）
+  if (per <= 0) { gap = 0; per = total / n; }
   const out = []; let cur = t0;
-  for (let i = 0; i < n; i++) { out.push([fromMin(cur), fromMin(cur + per)]); cur += per + 10; }
+  for (let i = 0; i < n; i++) { out.push([fromMin(cur), fromMin(cur + per)]); cur += per + gap; }
   return out;
 }
 function mondayOf(d) { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const w = (x.getDay() + 6) % 7; x.setDate(x.getDate() - w); return x; }
@@ -1102,6 +1107,31 @@ function periodsBetween(a, b) {
   const s = list.find(x => x.n === a), e = list.find(x => x.n === b);
   if (!s || !e) return '';
   return s.start + ' - ' + e.end;
+}
+/* 取第 n 节的起止时间；节次表里没有这一节时返回空串（不要渲染出 undefined） */
+function periodTimeOf(n, field) {
+  const p = (S.settings.periods || []).find(x => x.n === n);
+  return (p && p[field]) || '';
+}
+/* 课程记录的节次可能落在节次时间表之外（例如明细表导入的节次超出默认 10 节，
+   或导入后手动改过节次表）。此时夹到表内最近的一节，避免整门课在课表里凭空消失。 */
+function nearestPeriodIdx(list, n) {
+  let best = 0, bd = Infinity;
+  for (let i = 0; i < list.length; i++) {
+    const d = Math.abs(list[i].n - n);
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+/* 把课程起止节次解析成节次表下标区间 [idx, endIdx]；表为空时返回 null */
+function courseSpan(list, c) {
+  if (!list.length) return null;
+  let idx = list.findIndex(p => p.n === c.s);
+  let end = list.findIndex(p => p.n === c.e);
+  if (idx < 0) idx = nearestPeriodIdx(list, c.s);
+  if (end < 0) end = nearestPeriodIdx(list, c.e);
+  if (end < idx) end = idx;
+  return { idx: idx, end: end };
 }
 
 /* ---------------- 周次表达式解析 ---------------- */
@@ -1262,13 +1292,13 @@ function renderGrid() {
     const items = active.filter(c => c.day === d);
     const groups = new Map();
     items.forEach(c => { const k = c.s + '_' + c.e; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c); });
-    groups.forEach((arr, k) => {
+    groups.forEach(arr => {
       const n = arr.length;
       arr.forEach((c, i) => {
-        const idx = periods.findIndex(p => p.n === c.s);
-        if (idx < 0) return;
-        const endIdx = periods.findIndex(p => p.n === c.e);
-        const span = (endIdx >= idx ? endIdx - idx + 1 : 1);
+        const sp = courseSpan(periods, c);
+        if (!sp) return;
+        const idx = sp.idx;
+        const span = sp.end - idx + 1;
         const top = idx * rowH + 3;
         const height = span * rowH - 6;
         const w = 100 / n;
@@ -1400,11 +1430,10 @@ function handleFile(file) {
     try {
       const data = new Uint8Array(e.target.result);
       const wb = XLSX.read(data, { type: 'array', raw: false });
-      const sn = wb.SheetNames[0];
-      const ws = wb.Sheets[sn];
-      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '', raw: false });
-      const merges = (ws['!merges'] || []).map(m => ({ r1: m.s.r, c1: m.s.c, r2: m.e.r, c2: m.e.c }));
-      analyze(aoa, merges, file.name);
+      if (!wb.SheetNames || !wb.SheetNames.length) throw new Error('工作簿里没有工作表');
+      const sh = pickSheet(wb);
+      if (!sh) throw new Error('工作簿里没有可读取的工作表');
+      analyze(sh.aoa, sh.merges, file.name);
     } catch (err) {
       console.error(err);
       toast('文件解析失败：' + err.message, 3500);
@@ -1414,23 +1443,24 @@ function handleFile(file) {
 }
 
 /* ---- 识别格式 ---- */
+/* 找表头行：某一行里出现 5 个以上「星期X / 周X」就认定这是课表的表头 */
+function findDayHeader(rows) {
+  for (let i = 0; i < Math.min(rows.length, 12); i++) {
+    const hits = [];
+    rows[i].forEach((v, ci) => {
+      const m = /^(星期|周)([一二三四五六日天1-7])$/.exec(String(v).replace(/\s/g, ''));
+      if (m) hits.push({ ci: ci, d: cnDay(m[2]) });
+    });
+    if (hits.length >= 5) return { headRow: i, dayCols: hits };
+  }
+  return null;
+}
 function analyze(aoa, merges, fname) {
   const rows = aoa.map(r => r.map(v => String(v == null ? '' : v)));
-  // 找表头行：包含 星期一/周一/周一 等
-  let headRow = -1, dayCols = null;
-  for (let i = 0; i < Math.min(rows.length, 12); i++) {
-    const r = rows[i];
-    const hits = [];
-    r.forEach((v, ci) => {
-      const t = v.replace(/\s/g, '');
-      const m = /^(星期|周)([一二三四五六日天1-7])$/.exec(t);
-      if (m) hits.push({ ci, d: cnDay(m[2]) });
-    });
-    if (hits.length >= 5) { headRow = i; dayCols = hits; break; }
-  }
-  if (headRow >= 0) {
+  const hd = findDayHeader(rows);
+  if (hd) {
     const isBig = rows.some(r => r.some(v => /第[一二三四五六七八九十]+大节/.test(v)));
-    IMP = { kind: isBig ? 'biggrid' : 'grid', rows, merges, headRow, dayCols, fname, aoa };
+    IMP = { kind: isBig ? 'biggrid' : 'grid', rows, merges, headRow: hd.headRow, dayCols: hd.dayCols, fname, aoa };
     if (isBig) parseBigGrid();
     else parseGridLike();
     return;
@@ -1439,6 +1469,26 @@ function analyze(aoa, merges, fname) {
   const listRes = detectList(rows);
   if (listRes) { IMP = { kind: 'list', rows, merges, headRow: -1, fname, aoa, map: listRes }; showListMapping(); return; }
   toast('没认出这个表格的结构，请确认是课程表文件', 3200);
+}
+
+/* 课表不一定在第一个工作表里（有些导出的文件前面带封面 / 说明页）。
+   挨个看一遍，挑第一个像课程表的；都不像就退回第一个，保持与原来一致。 */
+function looksLikeSchedule(aoa) {
+  const rows = aoa.map(r => r.map(v => String(v == null ? '' : v)));
+  return !!findDayHeader(rows) || !!detectList(rows);
+}
+function pickSheet(wb) {
+  let first = null;
+  for (const sn of wb.SheetNames) {
+    const ws = wb.Sheets[sn];
+    if (!ws) continue;
+    const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false, defval: '', raw: false });
+    const merges = (ws['!merges'] || []).map(m => ({ r1: m.s.r, c1: m.s.c, r2: m.e.r, c2: m.e.c }));
+    const one = { aoa: aoa, merges: merges };
+    if (!first) first = one;
+    if (looksLikeSchedule(aoa)) return one;
+  }
+  return first;
 }
 
 function cnDay(s) {
@@ -1508,7 +1558,6 @@ function parseBigGrid() {
     const tm = /(\d{1,2}[:：]\d{2})\s*[-—~至]\s*(\d{1,2}[:：]\d{2})/.exec(rows[r][0] || '');
     let s = null, e = null;
     if (tm) { s = tm[1].replace('：', ':'); e = tm[2].replace('：', ':'); }
-    bigTimes.push({ s, e, label: '第' + '一二三四五六七八九十'[bi] + '大节' });
 
     // 收集本行所有 [xx-yy]节
     let lo = null, hi = null;
@@ -1527,6 +1576,8 @@ function parseBigGrid() {
     if (lo == null) { lo = seqStart; hi = seqStart + 1; }
     seqStart = hi + 1;
     const count = hi - lo + 1;
+    // 记下本大节覆盖的节次范围：课程块里没写 [x-y]节 时靠它定位
+    bigTimes.push({ lo: lo, hi: hi });
     if (s && e) {
       const sp = splitRange(s, e, count);
       sp.forEach((t, i) => periods.push({ n: lo + i, start: t[0], end: t[1] }));
@@ -1561,9 +1612,13 @@ function parseBigGrid() {
           const m = /\[\s*(\d{1,2})\s*[-–—]\s*(\d{1,2})\s*\]\s*节/.exec(per);
           if (m) { ps = +m[1]; pe = +m[2]; }
         }
-        if (ps == null) { ps = periods.length ? periods[0].n : 1; pe = ps + 1; }
-        // 找本大节对应的时间
-        if (ROOM_SPLIT_RE.test(room)) { /* keep */ }
+        if (ps == null) {
+          // 课程块里没写 [x-y]节 时，用它所在大节的节次范围兜底，
+          // 否则所有没标节次的课都会挤到第 1 大节上。
+          const bt = bigTimes[bi] || {};
+          ps = bt.lo != null ? bt.lo : (periods.length ? periods[0].n : 1);
+          pe = bt.hi != null ? bt.hi : ps + 1;
+        }
         courses.push({ id: uid(), name, teacher, room, day: dc.d, s: ps, e: pe, weeks, color: '', note: '', roomShort: shortRoom(room) });
       });
     }
@@ -1572,8 +1627,6 @@ function parseBigGrid() {
   IMP.result = { courses, notes, meta, periods, kind: 'biggrid' };
   showImportConfirm();
 }
-const ROOM_SPLIT_RE = /[\u2160-\u2179Ⅰ-Ⅹ]/;
-
 function cleanTeacher(s) {
   return String(s).split(/[,，]/).map(x => x.replace(/[\(（][^\)）]*[\)）]/g, '').trim()).filter(Boolean).join('、');
 }
@@ -2072,7 +2125,8 @@ function renderToday() {
   const mon = baseDate();
   let h = '';
   const wk = nowWeek();
-  h += '<div class="card" style="margin-bottom:12px"><h3>' + (week === wk ? '本周' : '第 ' + week + ' 周') + '（' + mon.getMonth() + '/' + mon.getDate() + ' - ' + addDays(mon, 6).getMonth() + '/' + addDays(mon, 6).getDate() + '）</h3><div class="muted">共 ' + S.courses.filter(c => isActive(c, week)).length + ' 节课</div></div>';
+  const lastD = addDays(mon, (S.global.showWeekend === false ? 4 : 6));
+  h += '<div class="card" style="margin-bottom:12px"><h3>' + (week === wk ? '本周' : '第 ' + week + ' 周') + '（' + mon.getMonth() + '/' + mon.getDate() + ' - ' + lastD.getMonth() + '/' + lastD.getDate() + '）</h3><div class="muted">共 ' + S.courses.filter(c => isActive(c, week)).length + ' 节课</div></div>';
   for (let i = 0; i < 7; i++) {
     if (i >= 5 && S.global.showWeekend === false) continue;
     const d = addDays(mon, i);
@@ -2089,7 +2143,7 @@ function renderToday() {
     h += '<div class="tl">';
     list.forEach(c => {
       h += '<div class="tl-item">' +
-        '<div class="tl-time"><b>' + (S.settings.periods.find(p => p.n === c.s) || {}).start + '</b>' + (S.settings.periods.find(p => p.n === c.e) || {}).end + '</div>' +
+        '<div class="tl-time"><b>' + periodTimeOf(c.s, 'start') + '</b>' + periodTimeOf(c.e, 'end') + '</div>' +
         '<div class="tl-dot" style="background:' + (c.color || '#0b8f86') + '"></div>' +
         '<div class="tl-card" style="border-left-color:' + (c.color || '#0b8f86') + '" data-id="' + c.id + '">' +
           '<div class="n">' + esc(c.name) + '</div>' +
@@ -2252,6 +2306,8 @@ function plainNotes(md) {
     .replace(/^#{1,6}\s*/gm, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/^\s*[-*]\s+/gm, '· ')
     .replace(/^>\s?/gm, '')
     .replace(/\n{3,}/g, '\n\n')
@@ -2365,9 +2421,10 @@ async function downloadUpdate() {
   const urls = UPDATE_MIRRORS.filter(Boolean).map(p => p + info.assetUrl).concat([info.assetUrl]);
   let lastErr = '下载失败';
   for (const url of urls) {
+    let uri = '';
     try {
       const r = await FS.downloadFile({ url: url, path: name, directory: 'CACHE' });
-      const uri = (r && r.path) || '';
+      uri = (r && r.path) || '';
       if (!uri) { lastErr = '下载未返回文件'; continue; }
       // 镜像可能返回错误页，用体积核对一下拿到的确实是安装包
       const st = await FS.stat({ path: name, directory: 'CACHE' });
@@ -2376,17 +2433,23 @@ async function downloadUpdate() {
         try { await FS.deleteFile({ path: name, directory: 'CACHE' }); } catch (_) { }
         continue;
       }
-      UPD.state = 'ready'; renderUpdate(); renderSettingsRoot();
-      if (OP && OP.open) {
-        await OP.open({ filePath: uri, contentType: 'application/vnd.android.package-archive' });
-        toast('已下载完成，按系统提示安装即可', 3000);
-      } else {
-        toast('已下载到应用缓存目录', 3000);
-      }
-      return;
     } catch (e) {
       lastErr = (e && e.message) ? String(e.message) : '下载失败';
+      continue;
     }
+    // 到这里安装包已经拿到手了：之后即使安装器没拉起来，也不该换镜像再下一遍
+    UPD.state = 'ready'; renderUpdate(); renderSettingsRoot();
+    if (OP && OP.open) {
+      try {
+        await OP.open({ filePath: uri, contentType: 'application/vnd.android.package-archive' });
+        toast('已下载完成，按系统提示安装即可', 3000);
+      } catch (e) {
+        toast('安装包已下载，但没能自动打开安装器。可点「打开下载页」手动下载安装。', 4200);
+      }
+    } else {
+      toast('已下载到应用缓存目录', 3000);
+    }
+    return;
   }
   UPD.state = 'found'; UPD.error = lastErr;
   renderUpdate(); renderSettingsRoot();
@@ -2545,6 +2608,8 @@ $('#pfAvClear').onclick = () => {
   S.profile.avatar = '';
   const uname = S.profile.nickname || S.settings.student || '同学';
   $('#pfAv').innerHTML = esc(String(uname).trim().slice(0, 1) || '清');
+  save(); renderMe();          // 与「恢复默认背景」一致：移除类操作立即落盘
+  toast('已移除头像');
 };
 $('#pfSave').onclick = () => {
   S.profile.nickname = $('#pfName').value.trim();
@@ -2852,8 +2917,11 @@ $('#sdEdit').onclick = () => { const id = curCourseId; hideSheet(); setTimeout((
 $('#sdDup').onclick = () => {
   const c = S.courses.find(x => x.id === curCourseId);
   if (!c) return;
-  const n = Object.assign({}, c, { id: uid(), day: c.day < 7 ? c.day + 1 : 7 });
-  S.courses.push(n); save(); renderAll(); hideSheet(); toast('已复制到星期' + DAY_SHORT[n.day]);
+  // 「不显示周末」时上限是周五，到头就绕回周一，免得复制到看不见的周末
+  const maxDay = S.global.showWeekend === false ? 5 : 7;
+  const day = c.day < maxDay ? c.day + 1 : (maxDay === 5 ? 1 : 7);
+  const n = Object.assign({}, c, { id: uid(), day: day });
+  S.courses.push(n); save(); renderAll(); hideSheet(); toast('已复制到星期' + DAY_SHORT[day]);
 };
 $('#sdDel').onclick = () => {
   const c = S.courses.find(x => x.id === curCourseId);
@@ -3151,8 +3219,8 @@ function exportPNG() {
     groups.forEach(arr => {
       const n = arr.length;
       arr.forEach((c, i) => {
-        const idx = periods.findIndex(p => p.n === c.s); if (idx < 0) return;
-        const ei = Math.max(idx, periods.findIndex(p => p.n === c.e));
+        const sp = courseSpan(periods, c); if (!sp) return;
+        const idx = sp.idx, ei = sp.end;
         const x = gx + tw + cw * (d - 1) + (cw / n) * i + 3;
         const y = top + idx * rowH + 3;
         const w = cw / n - 6, hh = (ei - idx + 1) * rowH - 6;
@@ -3218,6 +3286,9 @@ function checkRemind() {
   const now = new Date(), wk = nowWeek();
   const wd = now.getDay() === 0 ? 7 : now.getDay();
   const nowMin = now.getHours() * 60 + now.getMinutes();
+  // reminded 只用于当天去重，顺手清掉不是今天的，免得长期运行越攒越多
+  const today = ymd(now);
+  Object.keys(reminded).forEach(k => { if (k.indexOf(today) !== 0) delete reminded[k]; });
   S.courses.filter(c => c.day === wd && isActive(c, wk)).forEach(c => {
     const p = (S.settings.periods || []).find(x => x.n === c.s); if (!p || !p.start) return;
     const tm = toMin(p.start); if (tm == null) return;
@@ -3300,16 +3371,16 @@ function applyNativeTheme() {
 
 // 左右滑动切换周
 (function () {
-  let sx = 0, sy = 0, moved = false;
-  const sc = $('#gridScroll');
-  $('#pg-sched').addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; moved = false; }, { passive: true });
-  $('#pg-sched').addEventListener('touchmove', e => {
-    if (Math.abs(e.touches[0].clientX - sx) > 12) moved = true;
-  }, { passive: true });
-  $('#pg-sched').addEventListener('touchend', e => {
+  let sx = 0, sy = 0;
+  const pg = $('#pg-sched');
+  pg.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  pg.addEventListener('touchend', e => {
     const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    // 只认「水平位移明显大于垂直」的手势，避免上下滚动课表时误切周
     if (Math.abs(dx) > 58 && Math.abs(dx) > Math.abs(dy) * 1.6) {
-      if (dx < 0) { S.view.week = Math.min(99, S.view.week + 1); } else { S.view.week = Math.max(1, S.view.week - 1); }
+      const nw = dx < 0 ? Math.min(99, S.view.week + 1) : Math.max(1, S.view.week - 1);
+      if (nw === S.view.week) return;
+      S.view.week = nw;
       renderAll();
     }
   }, { passive: true });

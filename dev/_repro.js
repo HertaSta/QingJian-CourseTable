@@ -30,10 +30,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   if (!target) throw new Error('连不上 DevTools');
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
-  let id = 0; const waiters = new Map(); const errs = [];
+  let id = 0; const waiters = new Map(); const errs = []; let _loads = 0;
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
     if (m.method === 'Runtime.exceptionThrown') errs.push((m.params.exceptionDetails.exception || {}).description || m.params.exceptionDetails.text);
+    if (m.method === 'Page.loadEventFired') _loads++;
     if (m.id && waiters.has(m.id)) { waiters.get(m.id)(m); waiters.delete(m.id); }
   };
   const send = (method, params) => new Promise(r => { const i = ++id; waiters.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
@@ -46,8 +47,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await send('Page.enable'); await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 406, height: 904, deviceScaleFactor: 3, mobile: true,
     screenOrientation: { type: 'portraitPrimary', angle: 0 } });
+  /* 等新文档加载完再等启动完成（reload 返回时导航可能还没开始） */
+  const beforeLoads = _loads;
+  await ev('window.__ready = false; 1');
   await send('Page.reload', {});
-  await sleep(2500);
+  { const t0 = Date.now(); while (_loads === beforeLoads && Date.now() - t0 < 8000) await sleep(50); }
+  { const t0 = Date.now(); while (Date.now() - t0 < 12000) { if (await ev('window.__ready === true') === true) break; await sleep(120); } }
+  await sleep(300);
 
   const b64 = fs.readFileSync(XLSX_FILE).toString('base64');
   await ev(`(function(){var s=atob(${JSON.stringify(b64)});var u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);

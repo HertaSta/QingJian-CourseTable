@@ -81,9 +81,10 @@ async function getPageTarget() {
   const ws = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
 
-  let id = 0; const waiters = new Map();
+  let id = 0; const waiters = new Map(); let _loads = 0;
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
+    if (m.method === 'Page.loadEventFired') _loads++;
     if (m.id && waiters.has(m.id)) { waiters.get(m.id)(m); waiters.delete(m.id); }
   };
   const send = (method, params) => new Promise(res => {
@@ -97,7 +98,11 @@ async function getPageTarget() {
     width: VW, height: VH, deviceScaleFactor: DPR, mobile: true,
     screenOrientation: { type: 'portraitPrimary', angle: 0 }
   });
+  /* 等新文档加载完（Page.reload 返回时导航可能还没开始，见 feature-test 注释） */
+  const beforeLoads = _loads;
+  await send('Runtime.evaluate', { expression: 'window.__ready = false; 1', returnByValue: true });
   await send('Page.reload', { ignoreCache: false });
+  { const t0 = Date.now(); while (_loads === beforeLoads && Date.now() - t0 < 8000) await sleep(50); }
   for (let i = 0; i < 80; i++) {
     const r = await send('Runtime.evaluate', { expression: 'window.__ready === true', returnByValue: true });
     if (r.result && r.result.result && r.result.result.value === true) break;

@@ -108,11 +108,12 @@ window.Capacitor = {
   if (!t) throw new Error('连不上 DevTools');
   const ws = new WebSocket(t.webSocketDebuggerUrl);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
-  let id = 0; const waiters = new Map(); const errs = [];
+  let id = 0; const waiters = new Map(); const errs = []; let _loads = 0;
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
     if (m.method === 'Runtime.exceptionThrown') errs.push(m.params.exceptionDetails.text + ' :: ' + ((m.params.exceptionDetails.exception || {}).description || ''));
     if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') errs.push('[log] ' + m.params.entry.text);
+    if (m.method === 'Page.loadEventFired') _loads++;
     if (m.id && waiters.has(m.id)) { waiters.get(m.id)(m); waiters.delete(m.id); }
   };
   const send = (m, p) => new Promise(r => { const i = ++id; waiters.set(i, r); ws.send(JSON.stringify({ id: i, method: m, params: p || {} })); });
@@ -131,11 +132,20 @@ window.Capacitor = {
     }
     return false;
   };
+  /* 重新加载并等「新文档」就绪：reload 返回时导航可能还没开始，
+     直接 waitReady 会读到旧文档残留的 __ready；先把它置 false 再等 loadEventFired。 */
+  const reloadAndReady = async () => {
+    const before = _loads;
+    await evaluate('window.__ready = false; 1');
+    await send('Page.reload');
+    const t0 = Date.now();
+    while (_loads === before && Date.now() - t0 < 8000) await sleep(50);
+    return waitReady();
+  };
 
   await send('Runtime.enable'); await send('Log.enable'); await send('Page.enable');
   await send('Page.addScriptToEvaluateOnNewDocument', { source: FAKE });
-  await send('Page.reload');
-  await waitReady();
+  await reloadAndReady();
 
   console.log('\n【1】原生环境识别');
   check('识破在安卓 App 里运行', await evaluate('isNative()') === true);
@@ -240,8 +250,7 @@ window.Capacitor = {
   // 模拟：系统把 WebView 的 localStorage 回收掉，然后 App 重新启动
   await evaluate('localStorage.clear(); 1');
   await send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.__vfs = ' + vfs + ';' });
-  await send('Page.reload');
-  await waitReady();
+  await reloadAndReady();
   check('重启后 localStorage 仍为空', await evaluate("localStorage.getItem('coursetable.v1')") === null);
   check('从私有文件恢复了昵称', await evaluate('S.profile.nickname') === '回收测试');
   check('从私有文件恢复了签名', await evaluate('S.profile.signature') === 'sig-9');
