@@ -332,6 +332,21 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .pv-p{font-size:12.5px;color:var(--sub);line-height:1.9;margin:0 0 8px}
 .pv-p b{color:var(--text)}
 .pv-note{font-size:11.5px;color:var(--sub2);line-height:1.7;margin-top:18px;padding-top:12px;border-top:1px solid var(--line2)}
+/* 导入教程正文 */
+.tut-lead{font-size:12.5px;color:var(--sub);line-height:1.9;margin:2px 0 2px}
+.tut-lead b{color:var(--text)}
+.tut-step{display:flex;gap:10px;margin-top:16px}
+.tut-step .no{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.tut-step .bd{flex:1;min-width:0}
+.tut-step .tt{font-size:13px;font-weight:800;margin-bottom:4px}
+.tut-step .tx{font-size:12.5px;color:var(--sub);line-height:1.9}
+.tut-step .tx b{color:var(--text)}
+.tut-url{display:flex;align-items:center;gap:8px;margin-top:8px;background:var(--accent-soft);border-radius:10px;padding:7px 10px}
+.tut-url .u{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--accent);word-break:break-all;line-height:1.5}
+.tut-copy{flex:none;font:inherit;font-size:11.5px;font-weight:700;color:var(--accent);background:transparent;border:1px solid var(--accent);border-radius:8px;padding:3px 9px;cursor:pointer}
+.tut-copy:active{opacity:.6}
+.tut-warn{margin-top:20px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);font-size:12.5px;color:var(--sub);line-height:1.9}
+.tut-warn b{color:var(--text)}
 /* 更新说明正文：保留换行，过长时内部滚动 */
 .upnotes{font-size:12.5px;color:var(--sub);line-height:1.85;white-space:pre-wrap;overflow-wrap:break-word;max-height:230px;overflow-y:auto;background:var(--field);border-radius:12px;padding:10px 12px;margin-top:4px}
 .slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:5px;background:var(--line);outline:none;margin:8px 0 2px}
@@ -504,6 +519,16 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     <button class="ibtn" id="siCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="sh-body" id="siBody"></div>
+</div>
+
+<!-- 导入教程 -->
+<div class="sheet" id="sheetTutorial">
+  <div class="sh-head">
+    <button class="ibtn" data-back="#sheetImport" title="返回导入"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="t">导入教程</div>
+    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body" id="tutBody"></div>
 </div>
 
 <!-- 更多菜单 -->
@@ -861,7 +886,7 @@ const WEEK_CN = ['','星期一','星期二','星期三','星期四','星期五',
 const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
-const APP_VERSION = '0.1.1';
+const APP_VERSION = '0.1.2';
 const DEVELOPER = '澪露';
 
 /* ---------------- 状态 ---------------- */
@@ -1316,11 +1341,57 @@ function openImport() {
   $('#siBody').innerHTML =
     '<div class="muted" style="padding:6px 0 14px">选择学校教务系统导出的课程表文件（支持 .xlsx / .xls / .csv）。<br>会自动识别格式、解析周次与节次，不需要手工整理。</div>' +
     '<button class="btn" id="siPick">选择文件</button>' +
+    '<button class="btn sec" id="siTut" style="margin-top:8px">查看导入教程</button>' +
     '<button class="btn sec" id="siTpl" style="margin-top:8px">下载导入模板（.xlsx）</button>' +
     '<div class="hint" style="margin-top:14px">已支持：<br>① 大节网格表（行=第X大节，列=星期一～日）<br>② 通用明细表（每行一门课）<br>③ 通用网格表（行=节次，列=星期）</div>';
   showSheet('#sheetImport');
   $('#siPick').onclick = () => $('#fileXlsx').click();
+  $('#siTut').onclick = () => { renderTutorial(); showSheet('#sheetTutorial'); };
   $('#siTpl').onclick = downloadTemplate;
+}
+
+/* ---- 导入教程：教务系统怎么把课表导出来 ---- */
+const PORTAL_URL = 'http://portal.wru.edu.cn/index';
+function renderTutorial() {
+  const step = (n, t, x) =>
+    '<div class="tut-step"><div class="no">' + n + '</div><div class="bd">' +
+    '<div class="tt">' + t + '</div><div class="tx">' + x + '</div></div></div>';
+  $('#tutBody').innerHTML =
+    '<p class="tut-lead">本应用只负责把课表文件显示出来，课表本身需要你从学校教务系统导出。下面是导出课表的完整步骤。</p>' +
+    step(1, '连接校园网',
+      '教务系统与铁院门户只在校园网内可以访问。请先连上学校的 Wi‑Fi 或接入校园网，用手机流量打不开。') +
+    step(2, '进入智慧校园',
+      '打开<b>武汉铁路职业技术学院</b>官网，在首页找到「<b>智慧校园</b>」入口进入铁院门户；也可以直接在浏览器里访问门户地址。' +
+      '<div class="tut-url"><span class="u">' + PORTAL_URL + '</span>' +
+      '<button class="tut-copy" id="tutCopy">复制</button></div>') +
+    step(3, '登录门户',
+      '用学号与统一身份认证密码登录。密码遗忘或首次登录，按门户页面上的提示处理。') +
+    step(4, '打开「学期理论课表」',
+      '在门户里进入教务系统，找到「<b>学期理论课表</b>」并打开。不同学期的菜单文字可能略有差别，以门户里能查到自己课表的那一项为准。') +
+    step(5, '导出 / 下载课表',
+      '在课表页面点导出或下载按钮，把课表保存成 Excel 文件（.xlsx 或 .xls）。保存到手机的文件管理里，记一下位置。') +
+    step(6, '回到本应用导入',
+      '返回导入页面点「选择文件」，选中刚下载的文件即可。导入时会让你核对解析结果，再选择覆盖、另存为新课程表或合并到当前课程表。') +
+    '<div class="tut-warn">课表<b>以教务系统和铁院门户的查询结果为准</b>。本应用只做本地展示，不会改动课表内容；遇到调课、停课或临时调整，请以教务系统与任课教师的通知为准。</div>';
+  $('#tutCopy').onclick = () => copyText(PORTAL_URL);
+}
+/* 复制文本：优先用剪贴板 API，网页版（非安全上下文）退回 textarea */
+function copyText(txt) {
+  const done = () => toast('链接已复制');
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.select();
+    let okCopy = false;
+    try { okCopy = document.execCommand('copy'); } catch (e) { okCopy = false; }
+    ta.remove();
+    okCopy ? done() : toast('复制失败，请手动记录链接', 2600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done, fallback);
+  } else fallback();
 }
 
 function handleFile(file) {

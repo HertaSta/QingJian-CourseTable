@@ -178,6 +178,17 @@ window.Capacitor = {
   await pressBack();
   await sleep(300);
   check('有弹层时：先关弹层', await evaluate("document.querySelectorAll('#sheetImport.on').length") === 0);
+  // ①-1 导入教程 → 先回导入界面，再按一次才关
+  await evaluate("switchTab('sched'); openImport(); document.querySelector('#siTut').click(); 1");
+  await sleep(300);
+  check('教程已打开', await evaluate("document.querySelector('#sheetTutorial').classList.contains('on')") === true);
+  await pressBack();
+  await sleep(300);
+  check('教程页：先退回导入界面', await evaluate("document.querySelector('#sheetImport').classList.contains('on')") === true &&
+    await evaluate("document.querySelector('#sheetTutorial').classList.contains('on')") === false);
+  await pressBack();
+  await sleep(300);
+  check('导入界面再按一次：关闭弹层', await evaluate("document.querySelectorAll('.sheet.on').length") === 0);
   // ①-2 二级设置页 → 先回设置列表，再按一次才关
   await evaluate("switchTab('me'); document.querySelector('#btnSettings').click(); 1");
   await sleep(300);

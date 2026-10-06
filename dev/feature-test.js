@@ -107,6 +107,37 @@ function check(name, cond, extra) {
   })()`);
   check('取消后数据完全没变', await evaluate('S.tables.length + "|" + S.courses.length') === beforeCancel);
 
+  /* ---------- 2.5 导入教程 ---------- */
+  console.log('\n【2.5】导入教程');
+  await evaluate('hideSheet(); openImport(); 1');
+  check('导入界面有「查看导入教程」按钮', await evaluate("!!document.querySelector('#siTut')"),
+    await evaluate("document.querySelector('#siTut') && document.querySelector('#siTut').textContent"));
+  await evaluate("document.querySelector('#siTut').click(); 1");
+  check('教程弹层已打开', await evaluate("document.querySelector('#sheetTutorial').classList.contains('on')"));
+  check('导入弹层已让位（同时只显示一层）',
+    await evaluate("document.querySelectorAll('#sheetImport.on, #sheetTutorial.on').length") === 1);
+  const tut = await evaluate("document.querySelector('#tutBody').textContent");
+  check('教程共 6 步', await evaluate("document.querySelectorAll('#tutBody .tut-step').length") === 6,
+    String(await evaluate("document.querySelectorAll('#tutBody .tut-step').length")));
+  check('含「校园网」前置说明', /校园网/.test(tut));
+  check('含门户地址', tut.indexOf('http://portal.wru.edu.cn/index') >= 0);
+  check('含「学期理论课表」', /学期理论课表/.test(tut));
+  check('含导出 Excel 步骤', /Excel/.test(tut));
+  check('含「以教务系统…为准」提醒', /以教务系统/.test(tut) && /为准/.test(tut));
+  check('地址就是 PORTAL_URL 常量', await evaluate("document.querySelector('#tutBody .tut-url .u').textContent") === (await evaluate('PORTAL_URL')));
+  // 复制按钮：headless 下剪贴板 API 可能被拒，走 textarea 兜底也要能给出反馈
+  await evaluate("window.__toast=[]; window.__origToast=toast; window.toast=function(m){window.__toast.push(String(m));}; 1");
+  await evaluate("document.querySelector('#tutCopy').click(); 1");
+  await sleep(300);
+  const copyToast = await evaluate('JSON.stringify(window.__toast)');
+  check('复制按钮有结果反馈', /复制|失败/.test(copyToast), copyToast);
+  await evaluate("window.toast=window.__origToast; 1");
+  // 返回按钮回到导入界面
+  await evaluate("document.querySelector('#sheetTutorial .sh-head .ibtn[data-back]').click(); 1");
+  check('返回按钮回到导入界面', await evaluate("document.querySelector('#sheetImport').classList.contains('on')"));
+  check('教程的上级已登记进返回键路由', await evaluate("SHEET_PARENT['#sheetTutorial']") === '#sheetImport');
+  check('教程不改动任何数据', await evaluate('S.tables.length + "|" + S.courses.length') === beforeCancel);
+
   /* ---------- 3. 课表切换 ---------- */
   console.log('\n【3】多课程表切换');
   const firstId = await evaluate('S.tables[0].id');
