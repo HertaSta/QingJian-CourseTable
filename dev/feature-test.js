@@ -259,10 +259,38 @@ function check(name, cond, extra) {
   await evaluate("document.querySelector('#btnSettings').click(); 1");
   await new Promise(r => setTimeout(r, 350));
   check('设置入口打开设置弹层', await evaluate("document.querySelector('#sheetSettings').classList.contains('on')") === true);
-  const setTxt = await evaluate("document.querySelector('#sheetSettings').textContent");
-  check('设置内含外观主题', setTxt.indexOf('主题色') >= 0);
-  check('设置内含学期设置', setTxt.indexOf('总周数') >= 0);
-  check('设置内含数据管理', setTxt.indexOf('导出备份') >= 0);
+  const rootTxt = await evaluate("document.querySelector('#sheetSettings').textContent");
+  check('一级列表分为 5 个模块', await evaluate("document.querySelectorAll('#sheetSettings .setlist .navrow').length") === 5);
+  check('一级列表含「学期与节次」', rootTxt.indexOf('学期与节次') >= 0);
+  check('一级列表含「外观」', rootTxt.indexOf('外观') >= 0);
+  check('一级列表含「上课提醒」', rootTxt.indexOf('上课提醒') >= 0);
+  check('一级列表含「数据」', rootTxt.indexOf('数据') >= 0);
+  check('一级列表含「关于」', rootTxt.indexOf('关于') >= 0);
+  check('一级列表不再堆具体选项', rootTxt.indexOf('总周数') < 0 && rootTxt.indexOf('导出备份') < 0);
+  check('一级列表显示当前状态摘要', /第 \d+ 周 \/ 共 \d+ 周/.test(rootTxt) && /张课程表/.test(rootTxt), rootTxt.replace(/\s+/g, ' ').trim().slice(0, 120));
+
+  /* 二级模块：逐个进入 → 校验内容与行数 → 返回一级 */
+  const CATS = [
+    ['#sheetTerm', '学期与节次', ['总周数', '节次时间']],
+    ['#sheetLook', '外观', ['深色模式', '主题色', '界面背景图']],
+    ['#sheetRemind', '上课提醒', ['提前提醒']],
+    ['#sheetData', '数据', ['导出备份', '从备份恢复', '清空当前课程表']],
+    ['#sheetAbout', '关于', ['v0.1.0', '隐私政策']]
+  ];
+  for (let i = 0; i < CATS.length; i++) {
+    const sel = CATS[i][0], title = CATS[i][1], keys = CATS[i][2];
+    await evaluate(`document.querySelectorAll('#sheetSettings .setlist .navrow')[${i}].click(); 1`);
+    await sleep(350);
+    check('进入二级模块：' + title, await evaluate(`document.querySelector('${sel}').classList.contains('on')`) === true);
+    const txt = await evaluate(`document.querySelector('${sel}').textContent`);
+    keys.forEach(k => check(title + ' 内含「' + k + '」', txt.indexOf(k) >= 0, txt.replace(/\s+/g, ' ').trim().slice(0, 80)));
+    const oneOn = await evaluate("document.querySelectorAll('.sheet.on').length");
+    check('二级模块同时只开一个弹层', oneOn === 1, String(oneOn));
+    await evaluate(`document.querySelector('${sel} .sh-head .ibtn[data-back]').click(); 1`);
+    await sleep(350);
+    check('返回一级列表：' + title, await evaluate("document.querySelector('#sheetSettings').classList.contains('on')") === true);
+  }
+  check('返回键逐层退回（二级→一级）', await evaluate("SHEET_PARENT['#sheetLook']") === '#sheetSettings', await evaluate("String(SHEET_PARENT['#sheetLook'])"));
 
   const about = await evaluate("document.querySelector('#aboutCard').textContent");
   check('含版本 v0.1.0', about.indexOf('v0.1.0') >= 0, await evaluate('APP_VERSION'));
@@ -279,7 +307,11 @@ function check(name, cond, extra) {
   check('隐私政策写清数据只存本机', pv.indexOf('保存在本机') >= 0 || pv.indexOf('只保存在') >= 0);
   check('隐私政策含更新日期', pv.indexOf('最后更新') >= 0);
   await evaluate("hideSheet(); 1");
-  check('隐私政策可返回设置', await evaluate("document.querySelector('#pvBack').onclick !== null") === true);
+  await evaluate("showSheet('#sheetAbout'); document.querySelector('#btnPrivacy').click(); 1");
+  await sleep(350);
+  await evaluate("document.querySelector('#pvBack').click(); 1");
+  await sleep(350);
+  check('隐私政策可返回「关于」', await evaluate("document.querySelector('#sheetAbout').classList.contains('on')") === true);
 
   /* ---------- 10. 运行期错误 ---------- */
   console.log('\n【10】运行期错误');

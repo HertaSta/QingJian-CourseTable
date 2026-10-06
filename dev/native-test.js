@@ -145,6 +145,18 @@ window.Capacitor = {
   await pressBack();
   await sleep(300);
   check('有弹层时：先关弹层', await evaluate("document.querySelectorAll('#sheetImport.on').length") === 0);
+  // ①-2 二级设置页 → 先回设置列表，再按一次才关
+  await evaluate("switchTab('me'); document.querySelector('#btnSettings').click(); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#sheetSettings .setlist .navrow[data-go=\"#sheetData\"]').click(); 1");
+  await sleep(300);
+  await pressBack();
+  await sleep(300);
+  check('二级设置页：先退回设置列表', await evaluate("document.querySelector('#sheetSettings').classList.contains('on')") === true &&
+    await evaluate("document.querySelector('#sheetData').classList.contains('on')") === false);
+  await pressBack();
+  await sleep(300);
+  check('设置列表再按一次：关闭弹层', await evaluate("document.querySelectorAll('.sheet.on').length") === 0);
   // ② 不在课表页 → 回课表页
   await evaluate("switchTab('me'); 1");
   await pressBack();
@@ -199,6 +211,9 @@ window.Capacitor = {
   await sleep(200);
   await evaluate("document.querySelector('#btnSettings').click(); 1");
   await sleep(350);
+  await evaluate("document.querySelector('#sheetSettings .setlist .navrow[data-go=\"#sheetLook\"]').click(); 1");
+  await sleep(350);
+  check('进二级「外观」页', await evaluate("document.querySelector('#sheetLook').classList.contains('on')") === true);
   await evaluate("document.querySelector('#btnBgPick').click(); 1");
   await sleep(800);
   const pk1 = await evaluate("JSON.stringify((window.__calls || []).filter(function (c) { return c[0] === 'Camera.pickImages'; }))");

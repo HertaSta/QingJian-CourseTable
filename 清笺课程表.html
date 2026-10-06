@@ -318,10 +318,14 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .navrow .nt b{display:block;font-size:14.5px;font-weight:700}
 .navrow .nt small{display:block;font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.5;overflow-wrap:break-word}
 .navrow .chev{width:17px;height:17px;stroke:var(--sub2);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;flex:none}
-/* 设置弹层里的卡片改成列表分组样式，避免玻璃叠玻璃 */
-#sheetSettings .card{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;box-shadow:none;border-radius:0;padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid var(--line2)}
-#sheetSettings .card:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
-#sheetSettings .card h3{font-size:14px;margin-bottom:8px}
+/* 设置一级列表：一行一个二级模块 */
+.setlist .navrow{border-bottom:1px solid var(--line2)}
+.setlist .navrow:last-child{border-bottom:none}
+.setlist .navrow .ni{background:var(--accent-soft)}
+/* 设置二级弹层里的卡片改成列表分组样式，避免玻璃叠玻璃 */
+.sheet.cat .card{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;box-shadow:none;border-radius:0;padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid var(--line2)}
+.sheet.cat .card:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.sheet.cat .card h3{font-size:14px;margin-bottom:8px}
 /* 隐私政策正文 */
 .pv-h{font-size:13.5px;font-weight:800;margin:16px 0 6px}
 .pv-p{font-size:12.5px;color:var(--sub);line-height:1.9;margin:0 0 8px}
@@ -425,7 +429,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
           <h3>设置</h3>
           <div class="navrow" id="btnSettings">
             <div class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a7.9 7.9 0 0 0 0-3l1.9-1.4-1.9-3.3-2.3.8a7.6 7.6 0 0 0-2.6-1.5L14.2 2h-3.8l-.3 2.4a7.6 7.6 0 0 0-2.6 1.5l-2.3-.8L3.3 8.4l1.9 1.4a7.9 7.9 0 0 0 0 3l-1.9 1.4 1.9 3.3 2.3-.8a7.6 7.6 0 0 0 2.6 1.5l.3 2.4h3.8l.3-2.4a7.6 7.6 0 0 0 2.6-1.5l2.3.8 1.9-3.3z"/></svg></div>
-            <div class="nt"><b>设置</b><small>外观主题 · 学期周次 · 上课提醒 · 数据 · 关于与隐私</small></div>
+            <div class="nt"><b>设置</b><small>学期与节次 · 外观 · 上课提醒 · 数据 · 关于</small></div>
             <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
           </div>
         </div>
@@ -547,11 +551,49 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
   <div class="sh-body" id="tlBody"></div>
 </div>
 
-<!-- 设置 -->
+<!-- 设置 · 一级分类 -->
 <div class="sheet" id="sheetSettings">
   <div class="sh-head">
     <div class="t">设置</div>
     <button class="ibtn" id="stCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body">
+    <div class="setlist">
+      <div class="navrow" data-go="#sheetTerm">
+        <div class="ni"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 3v3M16 3v3"/><path d="M7.5 13.5h3M7.5 17h8"/></svg></div>
+        <div class="nt"><b>学期与节次</b><small id="smTerm">—</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="navrow" data-go="#sheetLook">
+        <div class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg></div>
+        <div class="nt"><b>外观</b><small id="smLook">—</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="navrow" data-go="#sheetRemind">
+        <div class="ni"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 4.6-1.8 6-1.8 6h15.6S18 13.6 18 9z"/><path d="M10.3 19.5a2 2 0 0 0 3.4 0"/></svg></div>
+        <div class="nt"><b>上课提醒</b><small id="smRemind">—</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="navrow" data-go="#sheetData">
+        <div class="ni"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.2" rx="7.4" ry="3.2"/><path d="M4.6 6.2v11.6c0 1.8 3.3 3.2 7.4 3.2s7.4-1.4 7.4-3.2V6.2"/><path d="M4.6 12c0 1.8 3.3 3.2 7.4 3.2s7.4-1.4 7.4-3.2"/></svg></div>
+        <div class="nt"><b>数据</b><small id="smData">—</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+      <div class="navrow" data-go="#sheetAbout">
+        <div class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.2"/><path d="M12 7.9h.01"/></svg></div>
+        <div class="nt"><b>关于</b><small id="smAbout">—</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 · 学期与节次 -->
+<div class="sheet cat" id="sheetTerm">
+  <div class="sh-head">
+    <button class="ibtn" data-back="#sheetSettings" title="返回设置"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="t">学期与节次</div>
+    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="sh-body">
     <div class="card">
@@ -573,12 +615,28 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
       <h3>节次时间</h3>
       <div id="periodEditor"></div>
       <button class="btn sec" id="btnResetPeriods" style="margin-top:10px">恢复默认（自动从课表拆分）</button>
+      <div class="hint">课程表左侧显示的时间即此处设置，仅对当前课程表生效。</div>
     </div>
+  </div>
+</div>
+
+<!-- 设置 · 外观 -->
+<div class="sheet cat" id="sheetLook">
+  <div class="sh-head">
+    <button class="ibtn" data-back="#sheetSettings" title="返回设置"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="t">外观</div>
+    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body">
     <div class="card">
-      <h3>外观</h3>
+      <h3>显示</h3>
       <div class="row"><span class="k">深色模式</span><div class="sw" id="swDark"></div></div>
       <div class="row"><span class="k">显示周末</span><div class="sw" id="swWeekend"></div></div>
-      <div class="flabel" style="margin-top:14px">主题色　<span class="muted" id="themeName" style="font-weight:500"></span></div>
+      <div class="hint">关闭「显示周末」后，课表只保留周一至周五。</div>
+    </div>
+    <div class="card">
+      <h3>主题色</h3>
+      <div class="flabel">预设配色　<span class="muted" id="themeName" style="font-weight:500"></span></div>
       <div class="palette" id="themePalette"></div>
       <div class="frow2" style="margin-top:10px">
         <label class="tpick"><input type="color" id="pickA" aria-label="主色"><span>主色</span></label>
@@ -586,7 +644,10 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
       </div>
       <button class="btn sec" id="btnThemeReset" style="margin-top:10px">恢复默认主题（青绿山水）</button>
       <div class="hint">点击色块可切换预设配色，也可以自定义主色和辅色。此处只改变界面配色，不影响课程块颜色。</div>
-      <div class="row" style="margin-top:14px"><span class="k">界面背景图</span><span class="muted" id="bgState" style="font-size:12px">默认渐变</span></div>
+    </div>
+    <div class="card">
+      <h3>界面背景图</h3>
+      <div class="row"><span class="k">当前背景</span><span class="muted" id="bgState" style="font-size:12px">默认渐变</span></div>
       <div class="frow2">
         <button class="btn sec" id="btnBgPick" style="margin-top:0">从相册选择</button>
         <button class="btn sec" id="btnBgClear" style="margin-top:0">恢复默认</button>
@@ -597,22 +658,62 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
       </div>
       <div class="hint">支持 jpg / png / webp 格式，保存到本机前会自动压缩。</div>
     </div>
+  </div>
+</div>
+
+<!-- 设置 · 上课提醒 -->
+<div class="sheet cat" id="sheetRemind">
+  <div class="sh-head">
+    <button class="ibtn" data-back="#sheetSettings" title="返回设置"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="t">上课提醒</div>
+    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body">
     <div class="card">
-      <h3>上课提醒</h3>
+      <h3>提醒时间</h3>
       <div class="row"><span class="k">提前提醒</span><select id="setRemind"><option value="0">关闭</option><option value="5">5 分钟</option><option value="10">10 分钟</option><option value="15">15 分钟</option><option value="20">20 分钟</option><option value="30">30 分钟</option></select></div>
       <div class="hint" id="remindHint">应用需在后台保持运行才会提醒，完全退出后不再提醒。</div>
     </div>
+  </div>
+</div>
+
+<!-- 设置 · 数据 -->
+<div class="sheet cat" id="sheetData">
+  <div class="sh-head">
+    <button class="ibtn" data-back="#sheetSettings" title="返回设置"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="t">数据</div>
+    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body">
     <div class="card">
-      <h3>数据</h3>
+      <h3>导入</h3>
       <button class="btn sec" id="btnImport2">导入 Excel 课程表</button>
+      <div class="hint">支持教务系统导出的 .xlsx / .xls 文件，导入时可选择覆盖、新建或合并到当前课程表。</div>
+    </div>
+    <div class="card">
+      <h3>导出</h3>
       <button class="btn sec" id="btnExportPng">导出课表图片</button>
       <button class="btn sec" id="btnIcs">导出为日历（.ics）</button>
       <button class="btn sec" id="btnBackup">导出备份（.json）</button>
+      <div class="hint">.ics 文件可导入手机自带日历、谷歌日历或 Outlook，每节课按周次生成日程。备份文件包含全部课程表与设置，更换手机或重装后可用它恢复。</div>
+    </div>
+    <div class="card">
+      <h3>恢复与清空</h3>
       <button class="btn sec" id="btnRestore">从备份恢复</button>
       <button class="btn dan" id="btnClear">清空当前课程表</button>
-      <div class="hint">.ics 文件可导入手机自带日历、谷歌日历或 Outlook，每节课按周次生成日程。</div>
       <div class="hint" id="storeHint">数据仅保存在本机。除本地存储外，安卓版还会在应用私有目录保存一份，清理后台不会丢失。更换手机时请使用「导出备份」迁移。</div>
     </div>
+  </div>
+</div>
+
+<!-- 设置 · 关于 -->
+<div class="sheet cat" id="sheetAbout">
+  <div class="sh-head">
+    <button class="ibtn" data-back="#sheetSettings" title="返回设置"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="t">关于</div>
+    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body">
     <div class="card about" id="aboutCard"></div>
   </div>
 </div>
@@ -620,7 +721,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 <!-- 隐私政策 -->
 <div class="sheet" id="sheetPrivacy">
   <div class="sh-head">
-    <button class="ibtn" id="pvBack" title="返回设置"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="ibtn" id="pvBack" data-back="#sheetAbout" title="返回关于"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <div class="t">隐私政策</div>
     <button class="ibtn" id="pvCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
@@ -1921,6 +2022,7 @@ function renderMe() {
 
   renderTableList();
   renderAbout();
+  renderSettingsRoot();
 
   $('#setTermStart').value = st.termStart || ymd(defaultTermStart());
   $('#setNowWeek').value = Math.max(1, Math.min(30, nowWeekFromTermStart(st.termStart || ymd(defaultTermStart()))));
@@ -1944,6 +2046,28 @@ function renderMe() {
   });
 
   $('#btnEditProfile').onclick = openProfile;
+}
+
+/* ---------------- 设置：一级列表摘要 ----------------
+   一级列表只列模块名，每行右侧小字给出当前状态，不进二级页也能看到关键信息。 */
+function currentThemeName() {
+  const cur = themeTriple();
+  const hit = THEMES.find(p => p.a === cur.a && p.b === cur.b && p.c === cur.c);
+  return hit ? hit.name : '自定义';
+}
+function renderSettingsRoot() {
+  const st = S.settings;
+  const wk = Math.max(1, Math.min(30, nowWeekFromTermStart(st.termStart || ymd(defaultTermStart()))));
+  const total = st.totalWeeks || 20;
+  const set = (id, txt) => { const el = $('#' + id); if (el) el.textContent = txt; };
+
+  set('smTerm', '第 ' + wk + ' 周 / 共 ' + total + ' 周');
+  set('smLook', currentThemeName() + '　·　' + (S.global.dark ? '深色模式' : '浅色模式') +
+    (S.global.showWeekend === false ? '　·　不显示周末' : ''));
+  const rm = S.global.remind || 0;
+  set('smRemind', rm ? '课前 ' + rm + ' 分钟' : '已关闭');
+  set('smData', S.tables.length + ' 张课程表　·　' + S.courses.length + ' 条课程');
+  set('smAbout', '版本 v' + APP_VERSION + '　·　' + DEVELOPER);
 }
 
 /* ---------------- 多课程表 ---------------- */
@@ -2357,7 +2481,11 @@ function saveEdit() {
 function showSheet(sel) {
   $('#mask').classList.add('on');
   $$('.sheet').forEach(s => s.classList.remove('on'));
-  $(sel).classList.add('on');
+  const el = $(sel);
+  if (!el) return;
+  el.classList.add('on');
+  const body = el.querySelector('.sh-body');   // 二级弹层复用同一个卷轴容器，切换时回到顶部
+  if (body) body.scrollTop = 0;
 }
 function hideSheet() {
   $('#mask').classList.remove('on');
@@ -2371,7 +2499,16 @@ $('#tlCancel').onclick = hideSheet;
 $('#btnSettings').onclick = () => { renderMe(); showSheet('#sheetSettings'); };
 $('#stCancel').onclick = hideSheet;
 $('#pvCancel').onclick = hideSheet;
-$('#pvBack').onclick = () => showSheet('#sheetSettings');
+/* 设置：一级列表 → 二级弹层；二级弹层的返回按钮回到它自己声明的上级 */
+$$('#sheetSettings .setlist .navrow').forEach(r => r.onclick = () => showSheet(r.dataset.go));
+$$('.sh-head .ibtn[data-back]').forEach(b => b.onclick = () => showSheet(b.dataset.back));
+$$('.sheet .sh-head .ibtn.catCancel').forEach(b => b.onclick = hideSheet);
+/* 每个弹层的上级（由返回按钮的 data-back 推导），安卓返回键据此逐层退回 */
+const SHEET_PARENT = {};
+$$('.sheet').forEach(s => {
+  const b = s.querySelector('.sh-head .ibtn[data-back]');
+  if (b) SHEET_PARENT['#' + s.id] = b.dataset.back;
+});
 $('#tlNew').onclick = () => {
   const v = prompt('新课程表的名称', '我的课程表 ' + (S.tables.length + 1));
   if (v == null) return;
@@ -2889,8 +3026,13 @@ function initNative() {
   applyNativeTheme();
   if (!C.Plugins || !C.Plugins.App) return;
   C.Plugins.App.addListener('backButton', () => {
-    // ① 有弹层 → 关掉弹层
-    if (anySheetOpen()) { hideSheet(); return; }
+    // ① 有弹层 → 二级弹层先退回它的上级，一级弹层才关闭
+    if (anySheetOpen()) {
+      const cur = document.querySelector('.sheet.on');
+      const parent = cur ? SHEET_PARENT['#' + cur.id] : null;
+      if (parent) { showSheet(parent); return; }
+      hideSheet(); return;
+    }
     // ② 不在课表页 → 回课表页
     if (S.view.tab !== 'sched') { switchTab('sched'); return; }
     // ③ 课表页且当周不是本周 → 先回本周

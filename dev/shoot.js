@@ -22,14 +22,16 @@ const SHOTS = [
   { name: '09_切换课程表',  js: 'hideSheet(); openTables();' },
   { name: '10_自定义背景',  js: 'hideSheet(); (function(){var c=document.createElement("canvas");c.width=c.height=160;var g=c.getContext("2d");var gr=g.createLinearGradient(0,0,160,160);gr.addColorStop(0,"#0b8f86");gr.addColorStop(.45,"#27b98b");gr.addColorStop(1,"#8ed06a");g.fillStyle=gr;g.fillRect(0,0,160,160);g.globalAlpha=.35;g.fillStyle="#fff";g.beginPath();g.arc(120,40,46,0,7);g.fill();g.beginPath();g.arc(30,130,60,0,7);g.fill();S.global.bgImage=c.toDataURL("image/jpeg",.9);S.global.bgDim=42;save();applyBackground();switchTab("sched");renderAll();})()' },
   { name: '11_我的',        js: 'hideSheet(); switchTab("me"); S.global.bgImage=""; applyBackground();' },
-  { name: '12_设置弹层',    js: 'document.querySelector("#btnSettings").click(); document.querySelector("#sheetSettings").querySelector(".sh-body").scrollTop=0;' },
-  { name: '13_关于与隐私',  js: 'document.querySelector("#sheetSettings").querySelector(".sh-body").scrollTop=99999;' },
-  { name: '14_隐私政策',    js: 'document.querySelector("#btnPrivacy").click();' },
-  { name: '15_课表深色',    js: 'hideSheet(); S.global.dark=true; applyTheme(); S.view.week=3; switchTab("sched"); renderAll();' },
-  { name: '16_当周无课',    js: 'S.global.dark=false; applyTheme(); S.view.week=17; renderAll();' },
-  { name: '17_主题色',      js: 'hideSheet(); switchTab("me"); document.querySelector("#btnSettings").click(); var p=document.querySelector("#themePalette"); if(p) p.scrollIntoView({block:"center"});' },
-  { name: '18_主题色_海天',  js: 'hideSheet(); S.global.theme={preset:"haixia",a:"#2b6fd6",b:"#38b6d9",c:"#7fd6c9"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' },
-  { name: '19_主题色_琥珀',  js: 'hideSheet(); S.global.theme={preset:"hupo",a:"#c2701c",b:"#e1a02b",c:"#f0cf6b"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' }
+  { name: '12_设置弹层',    js: 'hideSheet(); switchTab("me"); document.querySelector("#btnSettings").click();' },
+  { name: '13_二级_学期与节次', js: 'document.querySelectorAll("#sheetSettings .setlist .navrow")[0].click();' },
+  { name: '14_二级_外观',   js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[1].click(); var p=document.querySelector("#themePalette"); if(p) p.scrollIntoView({block:"center"});' },
+  { name: '15_二级_数据',   js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[3].click();' },
+  { name: '16_关于与隐私',  js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[4].click();' },
+  { name: '17_隐私政策',    js: 'document.querySelector("#btnPrivacy").click();' },
+  { name: '18_课表深色',    js: 'hideSheet(); S.global.dark=true; applyTheme(); S.view.week=3; switchTab("sched"); renderAll();' },
+  { name: '19_当周无课',    js: 'S.global.dark=false; applyTheme(); S.view.week=17; renderAll();' },
+  { name: '20_主题色_海天',  js: 'hideSheet(); S.global.theme={preset:"haixia",a:"#2b6fd6",b:"#38b6d9",c:"#7fd6c9"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' },
+  { name: '21_主题色_琥珀',  js: 'hideSheet(); S.global.theme={preset:"hupo",a:"#c2701c",b:"#e1a02b",c:"#f0cf6b"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' }
 ];
 
 const userDir = path.join(os.tmpdir(), 'edge-shot-' + process.pid + '-' + Date.now());
