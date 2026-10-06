@@ -5,8 +5,14 @@ const fs = require('fs'), os = require('os'), path = require('path');
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const PORT = 9339;
 const URL_ = process.argv[2] || 'http://127.0.0.1:8765/index.html';
-const XLSX_FILE = process.argv[3] || '';
+const XLSX_FILE = process.argv[3] || process.env.COURSE_XLSX || '';
 const WEEK = +(process.argv[4] || 5);
+if (!XLSX_FILE) {
+  console.error('用法：node dev/_repro.js <index.html 地址> <课程表.xlsx> [周次]');
+  console.error('例：  node dev/_repro.js http://127.0.0.1:8765/index.html ./我的课表.xlsx 3');
+  console.error('课程表路径也可以改用环境变量 COURSE_XLSX 传入。');
+  process.exit(1);
+}
 const OUTDIR = path.join(__dirname, '_bugshots');
 
 const userDir = path.join(os.tmpdir(), 'edge-repro-' + process.pid + '-' + Date.now());
