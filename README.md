@@ -171,6 +171,9 @@ xlsx.full.min.js             SheetJS，用于解析 Excel
 build-single.js              单文件合成脚本
 使用说明.md                   面向使用者的完整说明
 
+历史版本/                     历代 APK 安装包（按版本号命名，仅供留档对照）
+清笺课程表-v0.1.5.apk         当前版本（也放在此处，根目录不再另存一份）
+
 android-app/                 Capacitor 安卓壳工程
   www/                       同步过来的单文件
   android/                   原生工程，用 Gradle 构建
