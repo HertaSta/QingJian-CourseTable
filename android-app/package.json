@@ -1,6 +1,6 @@
 {
   "name": "qingjian-schedule",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "清笺课程表 - Android 壳工程（Capacitor）",
   "scripts": {

@@ -266,6 +266,8 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 html.native-app,html.native-app body{overscroll-behavior:none}
 html.native-app{-webkit-touch-callout:none}
 html.native-app input,html.native-app textarea{-webkit-user-select:text;user-select:text}
+/* 只在安卓 App 里显示的入口（网页版隐藏，因为浏览器跨域读不到教务系统） */
+html:not(.native-app) .native-only{display:none !important}
 
 /* ============ 自定义背景图 ============ */
 #bgLayer,#bgMask{position:fixed;inset:0;z-index:0;pointer-events:none}
@@ -347,6 +349,20 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .tut-copy:active{opacity:.6}
 .tut-warn{margin-top:20px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);font-size:12.5px;color:var(--sub);line-height:1.9}
 .tut-warn b{color:var(--text)}
+.tut-tip{margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--accent-soft);font-size:12px;color:var(--sub);line-height:1.8}
+.tut-tip b{color:var(--text)}
+/* 轻量确认弹窗（用于「从教务系统直接导入」的提醒） */
+.zwmodal{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;padding:0 22px}
+.zwmodal.on{display:flex}
+.zwmodal .mask{position:absolute;inset:0;background:rgba(20,16,32,.46)}
+.zwmodal .box{position:relative;width:100%;max-width:330px;background:var(--card);border-radius:18px;padding:20px 18px 14px;box-shadow:0 18px 46px rgba(30,20,60,.24)}
+.zwmodal .mt{font-size:15px;font-weight:800;text-align:center;margin-bottom:10px}
+.zwmodal .ml{font-size:12.5px;color:var(--sub);line-height:1.9}
+.zwmodal .ml b{color:var(--text)}
+.zwmodal .mstep{display:flex;gap:8px;margin-top:11px;font-size:12.5px;color:var(--sub);line-height:1.8}
+.zwmodal .mstep .n{flex:none;width:19px;height:19px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.zwmodal .mbtns{margin-top:16px}
+.zwmodal .mbtns .btn{width:100%}
 /* 更新说明正文：保留换行，过长时内部滚动 */
 .upnotes{font-size:12.5px;color:var(--sub);line-height:1.85;white-space:pre-wrap;overflow-wrap:break-word;max-height:230px;overflow-y:auto;background:var(--field);border-radius:12px;padding:10px 12px;margin-top:4px}
 .slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:5px;background:var(--line);outline:none;margin:8px 0 2px}
@@ -529,6 +545,22 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="sh-body" id="tutBody"></div>
+</div>
+
+<!-- 从教务系统直接导入：跳转前的简短提醒 -->
+<div class="zwmodal" id="zwModal">
+  <div class="mask" id="zwMask"></div>
+  <div class="box">
+    <div class="mt">在应用内打开教务系统</div>
+    <div class="ml">接下来会打开教务系统的登录页，请用学号与统一身份认证密码登录。<b>账号密码不会保存，也不会离开你的手机。</b></div>
+    <div class="mstep"><div class="n">1</div><div>登录后进入「<b>学期理论课表</b>」。</div></div>
+    <div class="mstep"><div class="n">2</div><div>在课表页面上方点「<b>打印</b>」，课表即会开始下载。</div></div>
+    <div class="mstep"><div class="n">3</div><div>应用随后会自动读取课表，回到导入确认页面。</div></div>
+    <div class="mbtns">
+      <button class="btn" id="zwGo">我知道了，去登录</button>
+      <button class="btn sec" id="zwCancel" style="margin-top:8px">取消</button>
+    </div>
+  </div>
 </div>
 
 <!-- 更多菜单 -->
@@ -721,6 +753,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     <div class="card">
       <h3>导入</h3>
       <button class="btn sec" id="btnImport2">导入 Excel 课程表</button>
+      <button class="btn sec native-only" id="btnImportZw">从教务系统直接导入</button>
       <div class="hint">支持教务系统导出的 .xlsx / .xls 文件，导入时可选择覆盖、新建或合并到当前课程表。</div>
     </div>
     <div class="card">
@@ -886,7 +919,7 @@ const WEEK_CN = ['','星期一','星期二','星期三','星期四','星期五',
 const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
-const APP_VERSION = '0.1.4';
+const APP_VERSION = '0.1.5';
 const DEVELOPER = '澪露';
 
 /* ---------------- 状态 ---------------- */
@@ -1144,7 +1177,10 @@ function parseWeeks(str, total) {
   let parity = 0;
   if (/单/.test(t)) parity = 1;
   if (/双/.test(t)) parity = 2;
-  t = t.replace(/[第周\[］\]]/g, '');
+  // 先剥掉括号内容：教务系统会把周次和节次写在一起（如 7-18(周)[01-02节]），
+  // 只留方括号不去圆括号的话，残留的 () 会让「7-18」这一段匹配不上而整段丢失。
+  t = t.replace(/[\(（][^\)）]*[\)）]/g, '').replace(/\[[^\]]*\]/g, '');
+  t = t.replace(/[第周\[\]］]/g, '');
   t = t.replace(/[，、；;]/g, ',');
   t = t.replace(/[～~—－]/g, '-');
   const set = new Set();
@@ -1368,14 +1404,20 @@ let IMP = null;   // 导入会话
 
 function openImport() {
   $('#siTitle').textContent = '导入课程表';
+  const canZw = isNative();
   $('#siBody').innerHTML =
     '<div class="muted" style="padding:6px 0 14px">选择学校教务系统导出的课程表文件（支持 .xlsx / .xls / .csv）。<br>会自动识别格式、解析周次与节次，不需要手工整理。</div>' +
     '<button class="btn" id="siPick">选择文件</button>' +
+    (canZw
+      ? '<button class="btn" id="siZw" style="margin-top:8px">从教务系统直接导入</button>' +
+        '<div class="hint" style="margin:6px 0 0">在应用内打开教务系统，登录后到「学期理论课表」点上方「打印」，应用会自动读取课表，不用先导出文件。不保存账号密码，每次都需要你手动登录。</div>'
+      : '') +
     '<button class="btn sec" id="siTut" style="margin-top:8px">查看导入教程</button>' +
     '<button class="btn sec" id="siTpl" style="margin-top:8px">下载导入模板（.xlsx）</button>' +
     '<div class="hint" style="margin-top:14px">已支持：<br>① 大节网格表（行=第X大节，列=星期一～日）<br>② 通用明细表（每行一门课）<br>③ 通用网格表（行=节次，列=星期）</div>';
   showSheet('#sheetImport');
   $('#siPick').onclick = () => $('#fileXlsx').click();
+  if (canZw && $('#siZw')) $('#siZw').onclick = importFromZw;
   $('#siTut').onclick = () => { renderTutorial(); showSheet('#sheetTutorial'); };
   $('#siTpl').onclick = downloadTemplate;
 }
@@ -1398,10 +1440,12 @@ function renderTutorial() {
       '用学号与统一身份认证密码登录。密码遗忘或首次登录，按门户页面上的提示处理。') +
     step(4, '打开「学期理论课表」',
       '在门户里进入教务系统，找到「<b>学期理论课表</b>」并打开。不同学期的菜单文字可能略有差别，以门户里能查到自己课表的那一项为准。') +
-    step(5, '导出 / 下载课表',
-      '在课表页面点导出或下载按钮，把课表保存成 Excel 文件（.xlsx 或 .xls）。保存到手机的文件管理里，记一下位置。') +
+    step(5, '点「打印」保存课表',
+      '在课表页面的<b>上方</b>找到「<b>打印</b>」按钮，点它。教务系统会直接把课表下载成 Excel 文件（.xlsx 或 .xls），并不会真的去打印。' +
+      '<div class="tut-tip">课表页面里没有单独的「导出」按钮，保存课表就是靠点上方这个「打印」。下载后到手机的「文件管理 → 下载」里能找到。</div>') +
     step(6, '回到本应用导入',
-      '返回导入页面点「选择文件」，选中刚下载的文件即可。导入时会让你核对解析结果，再选择覆盖、另存为新课程表或合并到当前课程表。') +
+      '返回导入页面点「选择文件」，选中刚下载的文件即可。导入时会让你核对解析结果，再选择覆盖、另存为新课程表或合并到当前课程表。' +
+      '<div class="tut-tip">也可以在导入页面点「从教务系统直接导入」，在应用内登录教务系统，登录后到学期理论课表点一下「打印」，应用会自动读取课表，不用来回切浏览器。</div>') +
     '<div class="tut-warn">课表<b>以教务系统和铁院门户的查询结果为准</b>。本应用只做本地展示，不会改动课表内容；遇到调课、停课或临时调整，请以教务系统与任课教师的通知为准。</div>';
   $('#tutCopy').onclick = () => copyText(PORTAL_URL);
 }
@@ -1625,6 +1669,123 @@ function parseBigGrid() {
   });
 
   IMP.result = { courses, notes, meta, periods, kind: 'biggrid' };
+  showImportConfirm();
+}
+
+/* ---- 解析：教务系统「学期理论课表」HTML（内置浏览器抓回来） ----
+   结构（正方教务系统 xskb_list.do）：
+     <table id="kbtable">
+       <tr> 表头：<th>空</th> + 7×<th>星期一…星期日</th>
+       <tr> <th>第一大节 … 08:30-10:10</th> + 7×<td>课程格</td>
+       … 5 个大节行 …
+       <tr> <th>备注:</th> <td colspan="7">…</td>
+     </table>
+   每个课程 <td> 里有 4 个 div，只有 class="kbcontent"（不是 kbcontent1）是要取的；
+   它的内容是「每 4 行一组」的课名/老师/周次(节次)/教室 —— 一格可叠两门课，必须按 4 行切分。 */
+function parseZwGrid(html) {
+  const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+  const table = doc.querySelector('#kbtable');
+  if (!table) throw new Error('没有找到课表表格（可能是登录已过期）');
+
+  const ZH = { '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9, '十':10 };
+  const trs = table.querySelectorAll('tr');
+  const courses = [], notes = [], periods = [];
+  const bigTimes = [];
+  const meta = { school: '', student: '', semester: '', className: '', major: '', college: '' };
+
+  trs.forEach(tr => {
+    const th = tr.querySelector('th');
+    if (!th) return;
+    const head = th.textContent.replace(/\s+/g, ' ').trim();
+
+    // 备注行
+    if (/^备注/.test(head)) {
+      const td = tr.querySelector('td');
+      const txt = td ? td.textContent.trim() : '';
+      txt.split(/[;；]/).forEach(seg => {
+        seg = seg.trim(); if (!seg) return;
+        const wm = /([\d,\-]+)\s*周/.exec(seg);
+        const weeks = wm ? parseWeeks(wm[1]) : null;
+        let name = seg.replace(/[\d,\-]+\s*周.*$/, '').trim();
+        const parts = name.split(/\s+/);
+        const nm = parts.shift();
+        notes.push({ name: nm || name, teacher: parts.join('、'), weeks, raw: seg });
+      });
+      return;
+    }
+
+    // 大节行
+    const bm = /第(.)大节/.exec(head);
+    if (!bm) return;
+    const bi = ZH[bm[1]];
+    const tm = /(\d{1,2}:\d{2})\s*[-—~至]\s*(\d{1,2}:\d{2})/.exec(head);
+    const tds = tr.querySelectorAll('td');
+    if (!bi || !tds.length) return;
+
+    // 本大节的时间区间 → 节次表
+    let lo = null, hi = null;
+    const tdsArr = Array.prototype.slice.call(tds, 0, 7);
+    tdsArr.forEach(td => {
+      const re = /\[\s*(\d{1,2})\s*[-–—]\s*(\d{1,2})\s*\]\s*节/g;
+      let m;
+      while ((m = re.exec(td.textContent))) {
+        const a = +m[1], b = +m[2];
+        if (lo == null || a < lo) lo = a;
+        if (hi == null || b > hi) hi = b;
+      }
+    });
+    const prev = periods.length ? periods[periods.length - 1].n : 0;
+    if (lo == null) { lo = prev + 1; hi = prev + 2; }
+    const count = hi - lo + 1;
+    bigTimes[bi - 1] = { lo: lo, hi: hi };
+    if (tm) {
+      const sp = splitRange(tm[1], tm[2], count);
+      sp.forEach((t, i) => periods.push({ n: lo + i, start: t[0], end: t[1] }));
+    } else {
+      for (let i = 0; i < count; i++) periods.push({ n: lo + i, start: '', end: '' });
+    }
+
+    // 课程：只取 class="kbcontent"（不带 1）的 div
+    tdsArr.forEach((td, di) => {
+      const day = di + 1;
+      const divs = td.querySelectorAll('div.kbcontent');
+      Array.prototype.forEach.call(divs, dv => {
+        if (dv.classList.contains('kbcontent1')) return;
+        // 用 <br> 把内容拆行：不要用 innerText（会受 CSS 影响），手动按 br 分段
+        const lines = [];
+        let cur = '';
+        dv.childNodes.forEach(n => {
+          if (n.nodeName === 'BR') { lines.push(cur); cur = ''; }
+          else cur += n.textContent;
+        });
+        lines.push(cur);
+        const ps = lines.map(x => x.replace(/\u00a0/g, ' ').trim()).filter(Boolean);
+        // ★ 每 4 行一门课（课名 / 老师 / 周次(节次) / 教室）
+        for (let i = 0; i + 3 < ps.length; i += 4) {
+          const name = ps[i], teacher = cleanTeacher(ps[i + 1]);
+          const weekLine = ps[i + 2], room = ps[i + 3];
+          if (!name || /^\d+$/.test(name)) continue;
+          const weeks = parseWeeks(weekLine);
+          let s = null, e = null;
+          const pm = /\[\s*(\d{1,2})\s*[-–—]\s*(\d{1,2})\s*\]\s*节/.exec(weekLine);
+          if (pm) { s = +pm[1]; e = +pm[2]; }
+          if (s == null) {
+            const bt = bigTimes[bi - 1] || {};
+            s = bt.lo != null ? bt.lo : lo;
+            e = bt.hi != null ? bt.hi : hi;
+          }
+          courses.push({ id: uid(), name, teacher, room, day, s, e, weeks, color: '', note: '', roomShort: shortRoom(room) });
+        }
+      });
+    });
+  });
+
+  if (!courses.length) throw new Error('课表里没有读到课程（可能是这学期还没有排课）');
+  // 学年学期：从页面的 xnxq01id 下拉框里取当前选中的值
+  const sel = doc.querySelector('select[name="xnxq01id"]');
+  if (sel && sel.value) meta.semester = sel.value;
+
+  IMP = { kind: 'zwgrid', result: { courses, notes, meta, periods, kind: 'biggrid' }, fname: '教务系统' };
   showImportConfirm();
 }
 function cleanTeacher(s) {
@@ -3008,6 +3169,7 @@ $$('.tab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 $('#btnAdd').onclick = () => openEdit(null);
 $('#btnImport').onclick = openImport;
 $('#btnImport2').onclick = openImport;
+if ($('#btnImportZw')) $('#btnImportZw').onclick = importFromZw;
 $('#btnExport').onclick = () => { renderMore(); showSheet('#sheetMore'); };
 $('#btnMore').onclick = () => { renderMore(); showSheet('#sheetMore'); };
 
@@ -3196,6 +3358,65 @@ function dl(blob, name) {
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+/* ================================================================
+   从教务系统直接导入（安卓 App 内置 WebView）
+   ================================================================
+   链路：App 原生侧弹出一个独立 WebView 打开 /jsxsd/ → 用户手动登录
+         （本应用不接触账号密码）→ 原生侧在同一个 WebView 上下文里 fetch 课表接口
+         → 把 HTML 回传 → 这里用 parseZwGrid() 解析。
+
+   为什么不能省掉原生插件：官方 @capacitor/inappbrowser 只能「显示」网页，
+   1.x / 2.x / 4.x 都没有 executeScript / postMessage，拿不到页面里的数据；
+   而课表接口必须带登录态 cookie，只能在同一个 WebView 里取。
+   所以用自写的 ZwBridge 插件（android/app/src/main/java/.../zwbridge/）。 */
+const ZW_ENTRY = 'http://jwxt.wru.edu.cn/jsxsd/';
+const ZW_KB_API = '/jsxsd/xskb/xskb_list.do';
+
+function zwPlugin() {
+  const C = window.Capacitor;
+  return (C && C.Plugins && C.Plugins.ZwBridge) || null;
+}
+
+/* 打开内置 WebView 并引导用户登录；原生侧登录完成后自动抓取课表 */
+function importFromZw() {
+  const P = zwPlugin();
+  if (!isNative() || !P) {
+    toast('这个方式需要在安卓 App 里使用。网页版受浏览器跨域限制，无法直接读取教务系统，请用「选择文件」导入。', 5200);
+    return;
+  }
+  showZwModal();
+}
+
+/* 跳转前的简短提醒弹窗：点「我知道了」才真正打开教务系统 */
+function showZwModal() {
+  const m = $('#zwModal');
+  if (!m) { zwOpen(); return; }
+  m.classList.add('on');
+  $('#zwGo').onclick = () => { m.classList.remove('on'); zwOpen(); };
+  $('#zwCancel').onclick = () => m.classList.remove('on');
+  $('#zwMask').onclick = () => m.classList.remove('on');
+}
+
+/* 真正打开教务系统并抓取课表 */
+function zwOpen() {
+  const P = zwPlugin();
+  if (!P) return;
+  IMP = { kind: 'zwgrid', awaitZw: true };
+  toast('请在弹出的窗口里登录教务系统，登录后到「学期理论课表」点「打印」', 5000);
+  P.openAndGrab({ url: ZW_ENTRY, apiPath: ZW_KB_API })
+    .then(res => {
+      const html = res && res.html;
+      if (!html) throw new Error('没有读到课表内容');
+      parseZwGrid(html);
+      toast('已读取到课表，请核对后导入');
+    })
+    .catch(e => {
+      const m = (e && (e.message || e.errorMessage)) || '';
+      if (!/取消|已取消|cancel/i.test(m)) toast('读取课表失败：' + m, 3600);
+    })
+    .finally(() => { if (IMP && IMP.awaitZw) IMP = null; });
 }
 
 /* ================================================================

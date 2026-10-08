@@ -99,6 +99,13 @@ window.Capacitor = {
         return { remove: function () {} };
       },
       exitApp: function () { window.__calls.push(['App.exitApp']); return Promise.resolve(); }
+    },
+    ZwBridge: {
+      openAndGrab: function (o) {
+        window.__calls.push(['ZwBridge.openAndGrab', o.url, o.apiPath]);
+        if (window.__zwReject) return Promise.reject(new Error(window.__zwReject));
+        return Promise.resolve({ html: window.__zwHtml || '' });
+      }
     }
   }
 };
@@ -347,6 +354,94 @@ window.Capacitor = {
   check('失败原因写进 UPD.error', (await evaluate('String(UPD.error)')).length > 0, await evaluate('String(UPD.error)'));
 
   await evaluate("hideSheet(); 1");
+
+  /* ---------- 8.5 从教务系统直接导入（ZwBridge 插件 + parseZwGrid） ---------- */
+  console.log('\n【8.5】从教务系统直接导入');
+  const zwHtml = await (async () => {
+    try { return require('fs').readFileSync(path.join(__dirname, '_probe', '_zw_fixture.html'), 'utf8'); }
+    catch (e) { return ''; }
+  })();
+  if (!zwHtml) {
+    check('脱敏样本可读取', false, 'dev/_probe/_zw_fixture.html 不存在');
+  } else {
+    check('脱敏样本可读取', true, zwHtml.length + ' 字符');
+
+    // ① 原生环境下设置页出现入口，网页版隐藏
+    await evaluate("__calls.length=0; 1");
+    await evaluate("showSheet('#sheetData'); 1");
+    await sleep(300);
+    const hasEntry = await evaluate("!!document.querySelector('#btnImportZw')");
+    const entryVisible = await evaluate(
+      "!!document.querySelector('#btnImportZw') && getComputedStyle(document.querySelector('#btnImportZw')).display !== 'none'");
+    check('设置页有「从教务系统直接导入」入口', hasEntry === true);
+    check('原生环境下入口可见', entryVisible === true);
+    const nativeOnlyHiddenOnWeb = await evaluate(
+      "document.documentElement.classList.contains('native-app')");
+    check('原生环境已标记 native-app', nativeOnlyHiddenOnWeb === true);
+
+    // ② 点入口 → 先弹「跳转前提醒」，确认后才调到 ZwBridge
+    await evaluate("window.__zwHtml = " + JSON.stringify(zwHtml) + "; 1");
+    await evaluate("window.__zwReject = null; __calls.length=0; 1");
+    await evaluate("document.querySelector('#btnImportZw').click(); 1");
+    await sleep(300);
+    const modalOn = await evaluate(
+      "!!document.querySelector('#zwModal') && document.querySelector('#zwModal').classList.contains('on')");
+    check('点入口先弹出跳转提醒', modalOn === true);
+    const zwCall0 = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='ZwBridge.openAndGrab';}))") || '[]');
+    check('仅弹提醒时不打开教务系统', zwCall0.length === 0, String(zwCall0.length));
+    const tipTxt = await evaluate(
+      "document.querySelector('#zwModal .box') ? document.querySelector('#zwModal .box').textContent : ''");
+    check('提醒里写明了要点「打印」', /打印/.test(tipTxt));
+    // 取消 → 不跳转、弹窗关闭
+    await evaluate("document.querySelector('#zwCancel').click(); 1");
+    await sleep(200);
+    const modalOff = await evaluate("document.querySelector('#zwModal').classList.contains('on')");
+    const zwCallX = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='ZwBridge.openAndGrab';}))") || '[]');
+    check('取消后关闭提醒且不跳转', modalOff === false && zwCallX.length === 0);
+
+    // 再点一次 → 确认跳转
+    await evaluate("document.querySelector('#btnImportZw').click(); 1");
+    await sleep(250);
+    await evaluate("document.querySelector('#zwGo').click(); 1");
+    await sleep(700);
+    const zwCall = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='ZwBridge.openAndGrab';}))") || '[]');
+    check('调用原生插件打开教务系统', zwCall.length === 1, zwCall.length ? zwCall[0][1] : '');
+    check('传入的是课表接口路径', zwCall.length === 1 && /xskb_list\.do/.test(zwCall[0][2]), zwCall.length ? zwCall[0][2] : '');
+    const nCourse = await evaluate("IMP && IMP.result ? IMP.result.courses.length : -1");
+    check('解析出全部课程（含一格两门）', nCourse === 16, String(nCourse));
+    const nNote = await evaluate("IMP && IMP.result ? IMP.result.notes.length : -1");
+    check('备注里的课也被解析', nNote === 1, String(nNote));
+    const nPer = await evaluate("IMP && IMP.result ? IMP.result.periods.length : -1");
+    check('生成了 10 个节次时间', nPer === 10, String(nPer));
+    const sem = await evaluate("IMP && IMP.result ? IMP.result.meta.semester : ''");
+    check('读出学年学期', sem === '2026-2027-1', sem);
+    const first = await evaluate("IMP && IMP.result ? JSON.stringify(IMP.result.courses[0]) : ''");
+    check('课程字段完整（名/师/室/周次/节次）', (() => {
+      try {
+        const c = JSON.parse(first);
+        return !!(c.name && c.teacher && c.room && c.weeks && c.s && c.e);
+      } catch (e) { return false; }
+    })(), first.slice(0, 120));
+    // 周次：1-2,4-5,7-18(周)[01-02节] 必须解析成 16 个周
+    // （1,2 + 4,5 + 7~18 = 2+2+12 = 16；旧的 parseWeeks 会因圆括号残留只剩 4 个）
+    const wk = await evaluate("IMP && IMP.result ? JSON.stringify(IMP.result.courses[0].weeks) : '[]'");
+    check('「周次(节次)」合一串解析正确', JSON.parse(wk || '[]').length === 16, wk);
+    const shown = await evaluate("document.querySelector('#siTitle') ? document.querySelector('#siTitle').textContent : ''");
+    check('弹出了确认导入界面', shown === '确认导入', shown);
+
+    await evaluate("hideSheet(); IMP=null; 1");
+
+    // ③ 原生侧失败（用户取消）→ 不报错、不残留会话
+    await evaluate("window.__zwReject = '已取消'; __calls.length=0; 1");
+    await evaluate("document.querySelector('#btnImport2') && document.querySelector('#btnImport2').click(); 1");
+    await sleep(300);
+    await evaluate("window.__zwHtml=''; document.querySelector('#siZw') && document.querySelector('#siZw').click(); 1");
+    await sleep(250);
+    await evaluate("document.querySelector('#zwGo') && document.querySelector('#zwGo').click(); 1");
+    await sleep(600);
+    check('取消后不残留导入会话', await evaluate('IMP === null || IMP.awaitZw !== true') === true);
+    await evaluate("window.__zwReject = null; hideSheet(); switchTab('sched'); 1");
+  }
 
   console.log('\n【9】运行期错误');
   const real = errs.filter(e => !/favicon|net::ERR_FILE|Failed to load resource/i.test(e));
