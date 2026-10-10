@@ -7,20 +7,22 @@ const path = require('path');
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const PORT = 9333;
 const URL_ = process.argv[2] || 'http://127.0.0.1:8765/_demo.html';
-const OUT = process.argv[3] || 'D:/项目归档/CourseTable';
+/* 默认直接写进 预览图/ —— 别用工程根目录，否则 24 张图会散在根目录要多一步搬运 */
+const OUT = process.argv[3] || 'D:/项目归档/CourseTable/预览图';
 const DPR = 3, VW = 390, VH = 844;
 
 // 「检查更新」截图用的假响应：让页面以为 GitHub 上发布了更高的 v0.1.5
-// （当前 App 版本是 0.1.4，这里必须比它高，否则页面会显示「已是最新」）
+// （App 当前版本是多少，这里就要比它高，否则页面会显示「已是最新」；
+//   APP_VERSION 升级后记得同步改这里，否则「检查更新」截图会退化成「已是最新」）
 const REL = {
-  tag_name: 'v0.1.5',
-  name: 'v0.1.5',
+  tag_name: 'v0.1.7',
+  name: 'v0.1.7',
   body: '## 本次更新\n\n- 修复了**课件**显示\n- 新增「检查更新」',
-  html_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/tag/v0.1.5',
+  html_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/tag/v0.1.7',
   assets: [{
-    name: 'QingJian-CourseTable-v0.1.5.apk',
-    browser_download_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/download/v0.1.5/QingJian-CourseTable-v0.1.5.apk',
-    size: 11795000
+    name: 'QingJian-CourseTable-v0.1.7.apk',
+    browser_download_url: 'https://github.com/HertaSta/QingJian-CourseTable/releases/download/v0.1.7/QingJian-CourseTable-v0.1.7.apk',
+    size: 11833000
   }]
 };
 const STUB_FETCH = 'window.fetch=function(){return Promise.resolve({ok:true,json:function(){return Promise.resolve(' +
@@ -33,26 +35,27 @@ const SHOTS = [
   { name: '01_课表',        js: 'hideSheet(); switchTab("sched"); S.view.week=3; renderAll();' },
   { name: '02_课程详情',    js: 'switchTab("sched"); openDetail(S.courses.find(c=>c.name.indexOf("会计信息")<0).id);' },
   { name: '03_日程',        js: 'hideSheet(); switchTab("today");' },
-  { name: '04_学习',        js: 'switchTab("learn");' },
-  { name: '05_我的',        js: 'hideSheet(); switchTab("me");' },
-  { name: '06_导入向导',    js: 'hideSheet(); switchTab("sched"); openImport();' },
-  { name: '07_导入三选项',  js: 'hideSheet(); (function(){var P=JSON.parse(JSON.stringify(DEFAULT_PERIODS));IMP={kind:"biggrid",result:{courses:S.courses.slice(0,12),notes:[],meta:{school:S.settings.school,student:S.settings.student,semester:"2026-2027-1",className:S.settings.className},periods:P}};showImportConfirm();})()' },
-  { name: '08_导入教程',    js: 'hideSheet(); openImport(); document.querySelector("#siTut").click();' },
-  { name: '09_个人资料',    js: 'hideSheet(); switchTab("me"); openProfile();' },
-  { name: '10_切换课程表',  js: 'hideSheet(); openTables();' },
-  { name: '11_自定义背景',  js: 'hideSheet(); (function(){var c=document.createElement("canvas");c.width=c.height=160;var g=c.getContext("2d");var gr=g.createLinearGradient(0,0,160,160);gr.addColorStop(0,"#0b8f86");gr.addColorStop(.45,"#27b98b");gr.addColorStop(1,"#8ed06a");g.fillStyle=gr;g.fillRect(0,0,160,160);g.globalAlpha=.35;g.fillStyle="#fff";g.beginPath();g.arc(120,40,46,0,7);g.fill();g.beginPath();g.arc(30,130,60,0,7);g.fill();S.global.bgImage=c.toDataURL("image/jpeg",.9);S.global.bgDim=42;save();applyBackground();switchTab("sched");renderAll();})()' },
-  { name: '12_我的',        js: 'hideSheet(); switchTab("me"); S.global.bgImage=""; applyBackground();' },
-  { name: '13_设置弹层',    js: 'hideSheet(); switchTab("me"); document.querySelector("#btnSettings").click();' },
-  { name: '14_二级_学期与节次', js: 'document.querySelectorAll("#sheetSettings .setlist .navrow")[0].click();' },
-  { name: '15_二级_外观',   js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[1].click(); var p=document.querySelector("#themePalette"); if(p) p.scrollIntoView({block:"center"});' },
-  { name: '16_二级_数据',   js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[3].click();' },
-  { name: '17_二级_检查更新', js: OPEN_UPDATE, wait: 2600 },
-  { name: '18_关于与隐私',  js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[5].click();' },
-  { name: '19_隐私政策',    js: 'document.querySelector("#btnPrivacy").click();' },
-  { name: '20_课表深色',    js: 'hideSheet(); S.global.dark=true; applyTheme(); S.view.week=3; switchTab("sched"); renderAll();' },
-  { name: '21_当周无课',    js: 'S.global.dark=false; applyTheme(); S.view.week=17; renderAll();' },
-  { name: '22_主题色_海天',  js: 'hideSheet(); S.global.theme={preset:"haixia",a:"#2b6fd6",b:"#38b6d9",c:"#7fd6c9"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' },
-  { name: '23_主题色_琥珀',  js: 'hideSheet(); S.global.theme={preset:"hupo",a:"#c2701c",b:"#e1a02b",c:"#f0cf6b"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' }
+  { name: '04_添加日程',    js: 'hideSheet(); switchTab("today"); openEvent(null);' },
+  { name: '05_学习',        js: 'switchTab("learn");' },
+  { name: '06_我的',        js: 'hideSheet(); switchTab("me");' },
+  { name: '07_导入向导',    js: 'hideSheet(); switchTab("sched"); openImport();' },
+  { name: '08_导入三选项',  js: 'hideSheet(); (function(){var P=JSON.parse(JSON.stringify(DEFAULT_PERIODS));IMP={kind:"biggrid",result:{courses:S.courses.slice(0,12),notes:[],meta:{school:S.settings.school,student:S.settings.student,semester:"2026-2027-1",className:S.settings.className},periods:P}};showImportConfirm();})()' },
+  { name: '09_导入教程',    js: 'hideSheet(); openImport(); document.querySelector("#siTut").click();' },
+  { name: '10_个人资料',    js: 'hideSheet(); switchTab("me"); openProfile();' },
+  { name: '11_切换课程表',  js: 'hideSheet(); openTables();' },
+  { name: '12_自定义背景',  js: 'hideSheet(); (function(){var c=document.createElement("canvas");c.width=c.height=160;var g=c.getContext("2d");var gr=g.createLinearGradient(0,0,160,160);gr.addColorStop(0,"#0b8f86");gr.addColorStop(.45,"#27b98b");gr.addColorStop(1,"#8ed06a");g.fillStyle=gr;g.fillRect(0,0,160,160);g.globalAlpha=.35;g.fillStyle="#fff";g.beginPath();g.arc(120,40,46,0,7);g.fill();g.beginPath();g.arc(30,130,60,0,7);g.fill();S.global.bgImage=c.toDataURL("image/jpeg",.9);S.global.bgDim=42;save();applyBackground();switchTab("sched");renderAll();})()' },
+  { name: '13_我的',        js: 'hideSheet(); switchTab("me"); S.global.bgImage=""; applyBackground();' },
+  { name: '14_设置弹层',    js: 'hideSheet(); switchTab("me"); document.querySelector("#btnSettings").click();' },
+  { name: '15_二级_学期与节次', js: 'document.querySelectorAll("#sheetSettings .setlist .navrow")[0].click();' },
+  { name: '16_二级_外观',   js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[1].click(); var p=document.querySelector("#themePalette"); if(p) p.scrollIntoView({block:"center"});' },
+  { name: '17_二级_数据',   js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[3].click();' },
+  { name: '18_二级_检查更新', js: OPEN_UPDATE, wait: 2600 },
+  { name: '19_关于与隐私',  js: 'showSheet("#sheetSettings"); document.querySelectorAll("#sheetSettings .setlist .navrow")[5].click();' },
+  { name: '20_隐私政策',    js: 'document.querySelector("#btnPrivacy").click();' },
+  { name: '21_课表深色',    js: 'hideSheet(); S.global.dark=true; applyTheme(); S.view.week=3; switchTab("sched"); renderAll();' },
+  { name: '22_当周无课',    js: 'S.global.dark=false; applyTheme(); S.view.week=17; renderAll();' },
+  { name: '23_主题色_海天',  js: 'hideSheet(); S.global.theme={preset:"haixia",a:"#2b6fd6",b:"#38b6d9",c:"#7fd6c9"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' },
+  { name: '24_主题色_琥珀',  js: 'hideSheet(); S.global.theme={preset:"hupo",a:"#c2701c",b:"#e1a02b",c:"#f0cf6b"}; applyTheme(); switchTab("sched"); S.view.week=3; renderAll();' }
 ];
 
 const userDir = path.join(os.tmpdir(), 'edge-shot-' + process.pid + '-' + Date.now());
