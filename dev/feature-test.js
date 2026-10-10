@@ -475,6 +475,14 @@ function check(name, cond, extra) {
   const d1 = await evaluate('ymd(baseDate())');
   check('日程页有「添加日程」入口', await evaluate("!!document.querySelector('#btnAddEvent')") === true);
   check('日程页是课程 + 日程混排', await evaluate("!!document.querySelector('#todayList .tl')") === true);
+  /* 回归：按钮在 .pgtitle 里，而 .pgtitle 用「渐变裁字」把 -webkit-text-fill-color 设成
+     transparent（该属性可继承）。按钮若不显式覆盖，文字会整体隐形、只剩一个方块。 */
+  const btnFill = await evaluate("(function(){var b=document.getElementById('btnAddEvent');" +
+    "var cs=getComputedStyle(b);return (cs.webkitTextFillColor||cs['-webkit-text-fill-color']||cs.color||'').replace(/\\s/g,'');})()");
+  check('添加日程按钮文字可见（未被渐变裁字染成透明）',
+    !/transparent|^rgba\(0,0,0,0\)$/.test(String(btnFill)), String(btnFill));
+  check('添加日程按钮有可见尺寸且文字未溢出', await evaluate("(function(){var b=document.getElementById('btnAddEvent');" +
+    "var r=b.getBoundingClientRect();return r.width>40 && r.height>20 && b.textContent.trim().length>0;})()") === true);
   check('没有任何安排时给出提示而不是空白', String(await evaluate("document.getElementById('todayList').innerHTML")).indexOf('没有安排') >= 0);
 
   await evaluate("document.querySelector('#btnAddEvent').click(); 1");
