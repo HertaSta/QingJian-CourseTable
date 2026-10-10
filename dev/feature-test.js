@@ -67,10 +67,16 @@ function check(name, cond, extra) {
   };
 
   /* ---------- 1. 旧版单课表数据迁移 ---------- */
+  /* 先等首页跑完再播种。Edge 刚启动时文档可能还是「初始空文档」，
+     它的源不透明，localStorage 会抛 SecurityError，写入被静默丢掉，
+     后面整组迁移断言都会跟着假失败（排查过：报错只有 ERR:Uncaught，很难看出原因）。 */
+  await waitReady();
   await evaluate(`localStorage.setItem('coursetable.v1', JSON.stringify({
       courses: [{id:'c1',name:'迁移测试课',teacher:'张三',room:'A101',day:1,s:1,e:2,weeks:[1,2,3],color:'#e2647a',note:''}],
       notes: [], settings: { termStart:'2026-09-07', totalWeeks:18, semester:'2025-2026-2', student:'张小同', className:'示例班级', dark:true, showWeekend:false, remind:10, periods: null }
   })); 1`);
+  // 读回确认真的落盘了，否则直接报错，不要拖到后面变成一串莫名其妙的失败
+  check('旧版数据已写入存储', String(await evaluate("(localStorage.getItem('coursetable.v1')||'')")).indexOf('迁移测试课') >= 0);
   await reloadAndReady();
   console.log('\n【1】旧版数据迁移');
   check('迁移出 1 份课表', await evaluate('S.tables.length') === 1);
@@ -462,6 +468,67 @@ function check(name, cond, extra) {
   await evaluate("S.profile.avatar='data:image/jpeg;base64,AAAA'; save(); renderMe(); switchTab('me'); openProfile(); 1");
   await evaluate("document.getElementById('pfAvClear').click(); 1");
   check('移除头像会立刻写入存储', await evaluate("JSON.parse(localStorage.getItem('coursetable.v1')).profile.avatar") === '');
+
+  /* ---------- 9.7 日程：添加 / 编辑 / 删除（网页版写不了系统日历） ---------- */
+  console.log('\n【9.7】日程：添加 / 编辑 / 删除');
+  await evaluate("S.settings.termStart='2026-09-07'; S.global.showWeekend=true; S.view.week=1; S.events=[]; save(); renderAll(); switchTab('today'); 1");
+  const d1 = await evaluate('ymd(baseDate())');
+  check('日程页有「添加日程」入口', await evaluate("!!document.querySelector('#btnAddEvent')") === true);
+  check('日程页是课程 + 日程混排', await evaluate("!!document.querySelector('#todayList .tl')") === true);
+  check('没有任何安排时给出提示而不是空白', String(await evaluate("document.getElementById('todayList').innerHTML")).indexOf('没有安排') >= 0);
+
+  await evaluate("document.querySelector('#btnAddEvent').click(); 1");
+  await sleep(300);
+  check('打开的表单标题是「添加日程」', await evaluate("document.querySelector('#sevTitle').textContent") === '添加日程');
+  check('新建时不显示删除按钮', await evaluate("document.querySelector('#sevDel').style.display") === 'none');
+  check('日期默认落在当前视图周', await evaluate("document.querySelector('#evDate').value") === d1);
+
+  await evaluate("document.querySelector('#evTitle').value='期中考试'; document.querySelector('#evDate').value='" + d1 + "'; document.querySelector('#evStart').value='09:00'; 1");
+  await evaluate("document.querySelector('#sevSave').click(); 1");
+  await sleep(400);
+  check('日程已保存', await evaluate('S.events.length') === 1 && await evaluate("S.events[0].title") === '期中考试');
+  check('结束时间为空时按 +1 小时补上', await evaluate("S.events[0].end") === '10:00');
+  check('保存后收起表单', await evaluate("document.querySelector('#sheetEvent').classList.contains('on')") === false);
+  check('日程已出现在当天时间线里', String(await evaluate("document.getElementById('todayList').innerHTML")).indexOf('期中考试') >= 0);
+
+  await evaluate("document.querySelector('#btnAddEvent').click(); 1");
+  await sleep(250);
+  await evaluate("document.querySelector('#evTitle').value='写反时间'; document.querySelector('#evDate').value='" + d1 + "'; document.querySelector('#evStart').value='15:00'; document.querySelector('#evEnd').value='14:00'; 1");
+  await evaluate("document.querySelectorAll('#evRemind .chip')[3].click(); 1");
+  await evaluate("document.querySelector('#sevSave').click(); 1");
+  await sleep(400);
+  check('结束早于开始时兜底为 +1 小时', await evaluate("(S.events.find(e=>e.title==='写反时间')||{}).end") === '16:00');
+  check('提醒选择已写入', await evaluate("(S.events.find(e=>e.title==='写反时间')||{}).remind") === 15);
+
+  await evaluate("document.querySelector('#btnAddEvent').click(); 1");
+  await sleep(250);
+  await evaluate("document.querySelector('#evTitle').value='   '; document.querySelector('#sevSave').click(); 1");
+  await sleep(300);
+  check('名称为空时不保存', await evaluate('S.events.length') === 2 && await evaluate("document.querySelector('#sheetEvent').classList.contains('on')") === true);
+
+  await evaluate("openEvent(S.events.find(e=>e.title==='期中考试').id); 1");
+  await sleep(250);
+  check('编辑时回填名称', await evaluate("document.querySelector('#evTitle').value") === '期中考试');
+  check('编辑时显示删除按钮', await evaluate("document.querySelector('#sevDel').style.display") === '');
+  await evaluate("document.querySelector('#evTitle').value='期中考试（改）'; document.querySelector('#evPlace').value='A101 阶梯教室'; document.querySelector('#sevSave').click(); 1");
+  await sleep(400);
+  check('编辑是就地修改，不新增', await evaluate('S.events.length') === 2 && await evaluate("S.events.filter(e=>/期中考试/.test(e.title)).length") === 1);
+  check('编辑后的内容已更新', await evaluate("S.events.find(e=>e.title==='期中考试（改）').place") === 'A101 阶梯教室');
+
+  check('网页版判定为不能写系统日历', await evaluate('calReady()') === false);
+  check('开关提示里写明了可用 .ics 代替', String(await evaluate("document.querySelector('#evSyncHint').textContent")).indexOf('.ics') >= 0);
+  await evaluate("document.querySelector('#evSync').click(); 1");
+  check('网页版点同步开关不会打开', await evaluate("document.querySelector('#evSync').classList.contains('on')") === false);
+
+  // 手工日程要能跟着 .ics 一起导出，否则网页版用户没有别的办法导进手机日历
+  const icsTxt = String(await evaluate('buildICS().text'));
+  check('导出的日历里带上手工日程', icsTxt.indexOf('SUMMARY:写反时间') >= 0);
+  check('导出的日程带提前提醒', icsTxt.indexOf('TRIGGER:-PT15M') >= 0);
+  check('导出的日程是合法时间区间', /DTSTART:\d{8}T\d{6}Z\r\nDTEND:\d{8}T\d{6}Z/.test(icsTxt));
+  await evaluate("window.confirm=function(){return true;}; 1");
+  await evaluate("document.querySelector('#sevDel').click(); 1");
+  await sleep(400);
+  check('删除后日程消失', await evaluate("!S.events.some(e=>e.title==='期中考试（改）')") === true);
 
   /* ---------- 10. 运行期错误 ---------- */
   console.log('\n【10】运行期错误');

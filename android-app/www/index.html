@@ -172,6 +172,17 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .tl-card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-brd);border-left:4px solid var(--accent);border-radius:14px;padding:10px 12px;box-shadow:var(--glass-sh)}
 .tl-card .n{font-weight:800;font-size:14.5px}
 .tl-card .m{font-size:12px;color:var(--sub);margin-top:3px;line-height:1.5}
+/* 日程：标题行右侧的「添加日程」按钮 */
+.pgtitle.pgt-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tbtn{padding:7px 13px;border-radius:11px;background:var(--grad);color:#fff;font-size:12.5px;font-weight:700;box-shadow:0 6px 16px rgba(var(--sh-tint),.28);flex:none;white-space:nowrap}
+.tbtn:active{opacity:.88}
+/* 时间线里手动添加的日程：用虚线边和角标跟课程区分开 */
+.tl-card.ev{border-left-style:dashed}
+.evtag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-size:10px;font-weight:800;vertical-align:1.5px}
+.evcal{font-size:10.5px;color:var(--accent);font-weight:700;margin-left:6px}
+/* 多选标签（提醒时间） */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips .chip{flex:1 0 calc(25% - 5px);padding:9px 4px}
 
 /* 学习 / 课程总览 */
 .crs{display:flex;gap:11px;align-items:stretch;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-brd);border-radius:14px;padding:10px 12px;margin-bottom:9px;box-shadow:var(--glass-sh)}
@@ -431,7 +442,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     <!-- ============ 日程页 ============ -->
     <section class="page" id="pg-today">
       <div class="scroller">
-        <div class="pgtitle">日程</div>
+        <div class="pgtitle pgt-row">日程<button class="tbtn" id="btnAddEvent">＋ 添加日程</button></div>
         <div id="todayList"></div>
       </div>
     </section>
@@ -525,6 +536,37 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     <div class="fgroup"><div class="flabel">配色</div><div class="palette" id="fPalette"></div></div>
     <div class="fgroup"><div class="flabel">备注（可选）</div><input class="finput" id="fNote" placeholder="可留空"></div>
     <button class="btn" id="seSave" style="margin-top:16px">保存</button>
+  </div>
+</div>
+
+<!-- 添加 / 编辑日程 -->
+<div class="sheet" id="sheetEvent">
+  <div class="sh-head">
+    <div class="t" id="sevTitle">添加日程</div>
+    <button class="ibtn red" id="sevDel" title="删除"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg></button>
+    <button class="ibtn" id="sevCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body">
+    <div class="fgroup"><div class="flabel">日程名称 *</div><input class="finput" id="evTitle" maxlength="40" placeholder="例如：期中考试"></div>
+    <div class="fgroup"><div class="flabel">日期</div><input class="finput" type="date" id="evDate"></div>
+    <div class="fgroup">
+      <div class="flabel">时间</div>
+      <div class="fgrid"><input class="finput" type="time" id="evStart"><input class="finput" type="time" id="evEnd"></div>
+      <div class="hint">结束时间留空时默认按开始时间后一小时。跨天的日程请分两条添加。</div>
+    </div>
+    <div class="fgroup"><div class="flabel">地点（可选）</div><input class="finput" id="evPlace" maxlength="40" placeholder="可留空"></div>
+    <div class="fgroup"><div class="flabel">备注（可选）</div><input class="finput" id="evNote" maxlength="80" placeholder="可留空"></div>
+    <div class="fgroup"><div class="flabel">配色</div><div class="palette" id="evPalette"></div></div>
+    <div class="fgroup">
+      <div class="flabel">提前提醒</div>
+      <div class="chips" id="evRemind"></div>
+      <div class="hint" id="evRemindHint">提醒交给手机自带的日历发出，所以需要同时开启下面的「同步到系统日历」。</div>
+    </div>
+    <div class="fgroup">
+      <div class="row" style="padding-top:0"><span class="k">同步到系统日历</span><div class="sw" id="evSync"></div></div>
+      <div class="hint" id="evSyncHint">开启后，保存时会把这个日程写进手机自带的日历，在系统日历里也能看到。</div>
+    </div>
+    <button class="btn" id="sevSave" style="margin-top:16px">保存</button>
   </div>
 </div>
 
@@ -946,6 +988,11 @@ const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
 const APP_VERSION = '0.1.5';
+/* 正式版留空 ''；测试版填 'test'。
+   测试版是独立包名（com.reiro.qingjian.test）、独立排号（v0.1、v0.2…），与正式版共存，
+   也不对应 GitHub 上的任何 Release —— 所以测试版不做更新检查，
+   免得把正式版的安装包当成「新版本」推过去。打测试版时这里改成 'test'。 */
+const APP_BUILD = '';
 const DEVELOPER = '澪露';
 
 /* ---------------- 状态 ---------------- */
@@ -972,6 +1019,7 @@ let S = {
    这样其余所有代码里 S.courses.push(...) 之类的写法完全不用改。 */
 Object.defineProperty(S, 'courses',  { get: () => activeTable().courses,  set: v => { activeTable().courses = v; },  configurable: true });
 Object.defineProperty(S, 'notes',    { get: () => activeTable().notes,    set: v => { activeTable().notes = v; },    configurable: true });
+Object.defineProperty(S, 'events',   { get: () => activeTable().events,   set: v => { activeTable().events = v; },   configurable: true });
 Object.defineProperty(S, 'settings', { get: () => activeTable().settings, set: v => { activeTable().settings = v; }, configurable: true });
 
 function blankSettings() {
@@ -985,7 +1033,7 @@ function newTable(name) {
   return {
     id: 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
     name: name || '新建课程表',
-    courses: [], notes: [], settings: blankSettings(), createdAt: Date.now()
+    courses: [], notes: [], events: [], settings: blankSettings(), createdAt: Date.now()
   };
 }
 function activeTable() {
@@ -1055,7 +1103,7 @@ function applySnapshot(d) {
     return false;
   }
   S.tables.forEach(t => {
-    t.courses = t.courses || []; t.notes = t.notes || [];
+    t.courses = t.courses || []; t.notes = t.notes || []; t.events = t.events || [];
     t.settings = Object.assign(blankSettings(), t.settings || {});
     if (!t.settings.periods || !t.settings.periods.length) t.settings.periods = JSON.parse(JSON.stringify(DEFAULT_PERIODS));
   });
@@ -2313,29 +2361,60 @@ function renderToday() {
   let h = '';
   const wk = nowWeek();
   const lastD = addDays(mon, (S.global.showWeekend === false ? 4 : 6));
-  h += '<div class="card" style="margin-bottom:12px"><h3>' + (week === wk ? '本周' : '第 ' + week + ' 周') + '（' + mon.getMonth() + '/' + mon.getDate() + ' - ' + lastD.getMonth() + '/' + lastD.getDate() + '）</h3><div class="muted">共 ' + S.courses.filter(c => isActive(c, week)).length + ' 节课</div></div>';
-  for (let i = 0; i < 7; i++) {
-    if (i >= 5 && S.global.showWeekend === false) continue;
+  const days = S.global.showWeekend === false ? 5 : 7;
+  // 本视图周覆盖的日期区间，用来挑出落在这一周的手动日程
+  const from = ymd(mon), to = ymd(addDays(mon, days - 1));
+  const weekEvents = (S.events || []).filter(e => e.date >= from && e.date <= to);
+  const cnt = S.courses.filter(c => isActive(c, week)).length;
+  h += '<div class="card" style="margin-bottom:12px"><h3>' + (week === wk ? '本周' : '第 ' + week + ' 周') +
+    '（' + mon.getMonth() + '/' + mon.getDate() + ' - ' + lastD.getMonth() + '/' + lastD.getDate() + '）</h3>' +
+    '<div class="muted">共 ' + cnt + ' 节课' +
+    (weekEvents.length ? '　·　' + weekEvents.length + ' 条日程' : '') + '</div></div>';
+  for (let i = 0; i < days; i++) {
     const d = addDays(mon, i);
-    const list = S.courses.filter(c => c.day === i + 1 && isActive(c, week)).sort((a, b) => a.s - b.s);
-    const isToday = ymd(d) === ymd(new Date());
+    const dstr = ymd(d);
+    // 当天的课程与日程合并成一条时间线，按开始时间排序
+    const items = [];
+    S.courses.filter(c => c.day === i + 1 && isActive(c, week)).forEach(c => {
+      items.push({ k: 'c', at: toMin(periodTimeOf(c.s, 'start')), c: c });
+    });
+    (S.events || []).filter(e => e.date === dstr).forEach(e => {
+      items.push({ k: 'e', at: toMin(e.start), e: e });
+    });
+    items.sort((a, b) => (a.at == null ? 1e9 : a.at) - (b.at == null ? 1e9 : b.at));
+    const isToday = dstr === ymd(new Date());
     h += '<div style="margin-bottom:16px">' +
       '<div style="font-size:13.5px;font-weight:700;margin-bottom:8px;color:' + (isToday ? 'var(--accent)' : 'var(--text)') + '">' +
       WEEK_CN[i + 1] + '　' + (d.getMonth() + 1) + '月' + d.getDate() + '日' + (isToday ? '　·　今天' : '') +
       '</div>';
-    if (!list.length) {
-      h += '<div class="muted" style="padding-left:2px">没有课，休息一下 ☕️</div></div>';
+    if (!items.length) {
+      h += '<div class="muted" style="padding-left:2px">没有安排，休息一下 ☕️</div></div>';
       continue;
     }
     h += '<div class="tl">';
-    list.forEach(c => {
-      h += '<div class="tl-item">' +
-        '<div class="tl-time"><b>' + periodTimeOf(c.s, 'start') + '</b>' + periodTimeOf(c.e, 'end') + '</div>' +
-        '<div class="tl-dot" style="background:' + (c.color || '#0b8f86') + '"></div>' +
-        '<div class="tl-card" style="border-left-color:' + (c.color || '#0b8f86') + '" data-id="' + c.id + '">' +
-          '<div class="n">' + esc(c.name) + '</div>' +
-          '<div class="m">第 ' + c.s + '-' + c.e + ' 节　' + esc(c.room || '教室待定') + (c.teacher ? '　' + esc(c.teacher) : '') + '</div>' +
-        '</div></div>';
+    items.forEach(it => {
+      const col = (it.k === 'c' ? it.c.color : it.e.color) || '#0b8f86';
+      if (it.k === 'c') {
+        const c = it.c;
+        h += '<div class="tl-item">' +
+          '<div class="tl-time"><b>' + periodTimeOf(c.s, 'start') + '</b>' + periodTimeOf(c.e, 'end') + '</div>' +
+          '<div class="tl-dot" style="background:' + col + '"></div>' +
+          '<div class="tl-card" style="border-left-color:' + col + '" data-cid="' + c.id + '">' +
+            '<div class="n">' + esc(c.name) + '</div>' +
+            '<div class="m">第 ' + c.s + '-' + c.e + ' 节　' + esc(c.room || '教室待定') + (c.teacher ? '　' + esc(c.teacher) : '') + '</div>' +
+          '</div></div>';
+      } else {
+        const e = it.e;
+        h += '<div class="tl-item">' +
+          '<div class="tl-time"><b>' + esc(e.start) + '</b>' + esc(e.end) + '</div>' +
+          '<div class="tl-dot" style="background:' + col + '"></div>' +
+          '<div class="tl-card ev" style="border-left-color:' + col + '" data-eid="' + e.id + '">' +
+            '<div class="n">' + esc(e.title) + '<span class="evtag">日程</span></div>' +
+            '<div class="m">' + esc(e.start) + ' - ' + esc(e.end) + (e.place ? '　' + esc(e.place) : '') +
+              (e.cal ? '<span class="evcal">已同步日历</span>' : '') + '</div>' +
+            (e.note ? '<div class="m">' + esc(e.note) + '</div>' : '') +
+          '</div></div>';
+      }
     });
     h += '</div></div>';
   }
@@ -2345,7 +2424,181 @@ function renderToday() {
       '</div>';
   }
   $('#todayList').innerHTML = h;
-  $$('#todayList .tl-card').forEach(el => el.addEventListener('click', () => openDetail(el.dataset.id)));
+  $$('#todayList .tl-card[data-cid]').forEach(el => el.addEventListener('click', () => openDetail(el.dataset.cid)));
+  $$('#todayList .tl-card[data-eid]').forEach(el => el.addEventListener('click', () => openEvent(el.dataset.eid)));
+}
+
+/* ================================================================
+   日程：添加 / 编辑 / 同步到系统日历
+   ================================================================
+   日程存在当前课程表里（t.events），和课程同进同出：切换课程表、导出备份都会自动带上。
+   一条日程长这样：
+     { id, title, date:'YYYY-MM-DD', start:'HH:mm', end:'HH:mm',
+       place, note, color, remind: 提前分钟数(0=不提醒), cal: { id, name } | null }
+   cal 非空表示它已经写进手机系统日历，里面记着事件 id；编辑或删除时要据此同步更新/移除。
+   写入日历用自写插件 CalBridge（安卓侧 CalendarContract），网页版没有这个能力，会降级提示。 */
+const EVENT_REMINDS = [
+  { v: 0,    t: '不提醒' },
+  { v: 5,    t: '提前 5 分钟' },
+  { v: 10,   t: '提前 10 分钟' },
+  { v: 15,   t: '提前 15 分钟' },
+  { v: 30,   t: '提前 30 分钟' },
+  { v: 60,   t: '提前 1 小时' },
+  { v: 120,  t: '提前 2 小时' },
+  { v: 1440, t: '提前 1 天' }
+];
+let curEventId = null;
+let evColor = PALETTE[0];
+let evRemind = 0;
+let evSync = false;
+
+function calPlugin() {
+  const C = window.Capacitor;
+  return (C && C.Plugins && C.Plugins.CalBridge) || null;
+}
+/* 能否写入系统日历：既要「在安卓 App 里」，又要插件确实挂上了 */
+function calReady() { return isNative() && !!calPlugin(); }
+
+function renderEvPalette() {
+  $('#evPalette').innerHTML = PALETTE.map(c =>
+    '<div class="swatch' + (c === evColor ? ' on' : '') + '" data-c="' + c + '" style="--sw:' + c + '"><i></i></div>').join('');
+  $$('#evPalette .swatch').forEach(el => el.onclick = () => { evColor = el.dataset.c; renderEvPalette(); });
+}
+function renderEvRemind() {
+  $('#evRemind').innerHTML = EVENT_REMINDS.map(r =>
+    '<div class="chip' + (r.v === evRemind ? ' on' : '') + '" data-v="' + r.v + '">' + r.t + '</div>').join('');
+  $$('#evRemind .chip').forEach(el => el.onclick = () => { evRemind = +el.dataset.v; renderEvRemind(); });
+}
+function paintEvSync() { $('#evSync').classList.toggle('on', evSync); }
+/* 网页版写不了系统日历，把开关压暗并在提示里说清替代办法 */
+function renderEvSyncHint() {
+  const usable = calReady();
+  const sw = $('#evSync');
+  if (!usable) { evSync = false; paintEvSync(); }
+  sw.style.opacity = usable ? '' : '.42';
+  $('#evSyncHint').textContent = usable
+    ? '开启后，保存时会把这个日程写进手机自带的日历，在系统日历里也能看到。'
+    : '网页版无法写入手机系统日历。可以照常添加日程，再用「导出为日历（.ics）」生成文件导入手机日历。';
+  $('#evRemindHint').textContent = usable
+    ? '提醒交给手机自带的日历发出，所以需要同时开启下面的「同步到系统日历」。'
+    : '提醒依赖系统日历，网页版暂不支持。';
+}
+
+function openEvent(id) {
+  curEventId = id || null;
+  const e = id ? (S.events || []).find(x => x.id === id) : null;
+  $('#sevTitle').textContent = e ? '编辑日程' : '添加日程';
+  $('#sevDel').style.display = e ? '' : 'none';
+  $('#evTitle').value = e ? (e.title || '') : '';
+  // 新建时默认落在当前视图周的周一：用户多半是在为看得到的这一周安排事情
+  $('#evDate').value = e ? (e.date || '') : ymd(baseDate());
+  $('#evStart').value = e ? (e.start || '') : '';
+  $('#evEnd').value = e ? (e.end || '') : '';
+  $('#evPlace').value = e ? (e.place || '') : '';
+  $('#evNote').value = e ? (e.note || '') : '';
+  evColor = e ? (e.color || PALETTE[0]) : PALETTE[0];
+  evRemind = e ? (e.remind || 0) : 0;
+  evSync = e ? !!e.cal : false;
+  renderEvPalette(); renderEvRemind(); renderEvSyncHint(); paintEvSync();
+  showSheet('#sheetEvent');
+}
+
+async function saveEvent() {
+  const title = ($('#evTitle').value || '').trim();
+  if (!title) { toast('请填写日程名称'); return; }
+  const date = $('#evDate').value;
+  if (!date) { toast('请选择日期'); return; }
+  const start = $('#evStart').value || '09:00';
+  if (toMin(start) == null) { toast('开始时间的格式不对'); return; }
+  // 结束时间留空或填得比开始还早时兜底，免得写出负数时长的日程
+  let end = $('#evEnd').value || '';
+  const s0 = toMin(start);
+  let e0 = toMin(end);
+  if (e0 == null || e0 <= s0) { end = fromMin(s0 + 60); e0 = s0 + 60; }
+  // 跨天的日程按「第二天同一时刻」算，而不是直接判错
+  if (e0 > 1440) end = fromMin(e0 - 1440);
+
+  const old = curEventId ? (S.events || []).find(x => x.id === curEventId) : null;
+  const obj = {
+    id: curEventId || ('ev' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
+    title: title, date: date, start: start, end: end,
+    place: ($('#evPlace').value || '').trim(),
+    note: ($('#evNote').value || '').trim(),
+    color: evColor, remind: evRemind,
+    cal: old ? (old.cal || null) : null
+  };
+  // 先把本地存下来：万一系统日历写失败，用户填的内容也不会丢
+  if (old) Object.assign(old, obj); else S.events.push(obj);
+  // 注意：编辑时真正在 S.events 里的是 old，obj 只是一份临时副本。
+  // 下面同步日历必须操作 stored，否则改到的是一份游离对象，
+  // 「已同步日历」标记和 cal.id 都不会被更新。
+  const stored = old || obj;
+  save(); hideSheet(); renderToday();
+  toast(old ? '已保存' : '已添加日程');
+
+  if (calReady() && evSync) syncEventToCal(stored, !!old);
+  else if (stored.cal) removeEventFromCal(stored);
+}
+
+/* 写入系统日历。replace=true 表示编辑已有日程，需要先把日历里的旧事件删掉再建，避免重复。 */
+async function syncEventToCal(e, replace) {
+  const P = calPlugin();
+  if (!P) return;
+  toast('正在写入系统日历…', 1600);
+  try {
+    if (!(await ensureCalPermission(P))) throw new Error('没有取得日历权限，请在系统设置里允许本应用访问日历');
+    if (replace && e.cal && e.cal.id) { try { await P.deleteEvent({ id: e.cal.id }); } catch (err) {} }
+    const cals = await P.listCalendars();
+    const list = (cals && cals.calendars) || [];
+    if (!list.length) throw new Error('手机里没有可写入的日历账户');
+    const target = list.find(c => c.isPrimary) || list[0];
+    const res = await P.createEvent({
+      calendarId: String(target.id),
+      title: e.title,
+      begin: e.date + 'T' + e.start + ':00',
+      end: e.date + 'T' + e.end + ':00',
+      location: e.place || '',
+      description: e.note || '',
+      remindMinutes: e.remind || 0
+    });
+    e.cal = { id: String((res && res.id) || ''), name: target.name || '' };
+    save(); renderToday();
+    toast(e.remind > 0 ? '已同步到系统日历，会在开始前提醒你' : '已同步到系统日历');
+  } catch (err) {
+    e.cal = null; save(); renderToday();
+    toast('没能写入系统日历：' + ((err && err.message) || err) + '。日程已保存在本应用里。', 4600);
+  }
+}
+async function removeEventFromCal(e) {
+  const P = calPlugin();
+  const old = e.cal;
+  e.cal = null; save(); renderToday();
+  if (!P || !old || !old.id) return;
+  try { await P.deleteEvent({ id: old.id }); toast('已从系统日历移除'); }
+  catch (err) { toast('系统日历里的这条可能还在，可到日历里手动删掉', 3800); }
+}
+/* 权限判定：Capacitor 按 @Permission 的别名回传，比如 {calendar:'granted'}；
+   不同实现的字段名不完全一样，这里几种形状都认，多认不会出错。 */
+function permOk(r) {
+  if (!r) return false;
+  if (r.granted === true) return true;
+  return ['calendar', 'write', 'readWrite', 'read'].some(k => r[k] === 'granted');
+}
+async function ensureCalPermission(P) {
+  try {
+    if (permOk(await P.checkPermissions())) return true;
+    return permOk(await P.requestPermissions());
+  } catch (e) {
+    return true;   // 插件没有权限方法时，交给 createEvent 自己弹系统授权框
+  }
+}
+function delEvent() {
+  const e = curEventId ? (S.events || []).find(x => x.id === curEventId) : null;
+  if (!e) return;
+  if (!confirm('删除日程「' + e.title + '」？' + (e.cal ? '\n手机系统日历里的那条也会一并删除。' : ''))) return;
+  S.events = S.events.filter(x => x.id !== curEventId);
+  save(); hideSheet(); renderToday(); toast('已删除');
+  if (e.cal) removeEventFromCal(e);   // e 已不在列表里，这里只负责清掉系统日历的那条
 }
 
 /* ================================================================
@@ -2550,6 +2803,18 @@ function renderUpdate() {
   const info = UPD.latest;
   set('upCur', 'v' + APP_VERSION);
 
+  // 测试版不对应任何 Release，检查只会拿到正式版的版本号，索性不做
+  if (APP_BUILD) {
+    set('upLatest', '测试版不做检查');
+    const tb = $('#btnCheckUpdate');
+    if (tb) tb.disabled = true;
+    const tc = $('#upCard');
+    if (tc) tc.classList.add('hidden');
+    const th = $('#upHint');
+    if (th) th.textContent = '当前是测试版：独立排号、与正式版共存，不对应 GitHub 上的发布记录，因此不做更新检查。';
+    return;
+  }
+
   let last = '未检查';
   if (UPD.state === 'checking') last = '正在检查…';
   else if (UPD.state === 'error') last = '检查失败';
@@ -2593,6 +2858,7 @@ function renderUpdate() {
     : '点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除此之外应用不联网。';
 }
 async function checkUpdate(manual) {
+  if (APP_BUILD) { toast('测试版不做更新检查'); return; }
   if (UPD.state === 'checking' || UPD.state === 'downloading') return;
   UPD.state = 'checking'; UPD.error = '';
   renderUpdate(); renderSettingsRoot();
@@ -3032,12 +3298,42 @@ function buildICS() {
       L.push('END:VEVENT');
     });
   });
+  // 手工添加的日程也要一起导出：网页版写不了系统日历，只能靠这份 .ics 导进手机日历
+  (t.events || []).forEach(e => {
+    const d0 = parseYmd(e.date);
+    if (!d0) return;
+    const sM = toMin(e.start), eM = toMin(e.end);
+    if (sM == null) return;
+    // 结束时间不晚于开始（跨零点）时按第二天算，避免写出 DTEND 早于 DTSTART 的非法事件
+    const cross = (eM == null || eM <= sM);
+    const dE = cross ? addDays(d0, 1) : d0;
+    const ds = icsLocal(d0, e.start);
+    const de = icsLocal(dE, (eM == null || eM <= sM) ? fromMin(sM + 60) : e.end);
+    if (!ds || !de) return;
+    events++;
+    L.push('BEGIN:VEVENT');
+    L.push('UID:' + e.id + '@qingjian-coursetable');
+    L.push('DTSTAMP:' + now);
+    L.push('DTSTART:' + ds);
+    L.push('DTEND:' + de);
+    L.push('SUMMARY:' + icsEsc(e.title));
+    if (e.place) L.push('LOCATION:' + icsEsc(e.place));
+    if (e.note) L.push('DESCRIPTION:' + icsEsc(e.note));
+    if (e.remind > 0) {
+      L.push('BEGIN:VALARM');
+      L.push('TRIGGER:-PT' + e.remind + 'M');
+      L.push('ACTION:DISPLAY');
+      L.push('DESCRIPTION:' + icsEsc(e.title));
+      L.push('END:VALARM');
+    }
+    L.push('END:VEVENT');
+  });
   L.push('END:VCALENDAR');
   return { text: L.map(icsFold).join('\r\n') + '\r\n', events };
 }
 function exportICS() {
   const t = activeTable();
-  if (!t.courses.length) { toast('当前课程表还没有课程，先导入 Excel 或手动添加'); return; }
+  if (!t.courses.length && !(t.events || []).length) { toast('当前课程表还没有课程或日程，先导入 Excel 或手动添加'); return; }
   const { text, events } = buildICS();
   if (!events) { toast('没有生成任何日程，请检查节次时间是否完整'); return; }
   const who = String(S.profile.nickname || t.settings.student || '我').replace(/[\\/:*?"<>|\s]/g, '') || '我';
@@ -3159,6 +3455,15 @@ $('#tlNew').onclick = () => {
 };
 $('#tbTbl').onclick = openTables;
 $('#seSave').onclick = saveEdit;
+/* 日程：添加 / 编辑 / 删除，以及「同步到系统日历」开关 */
+$('#btnAddEvent').onclick = () => openEvent(null);
+$('#sevCancel').onclick = hideSheet;
+$('#sevSave').onclick = saveEvent;
+$('#sevDel').onclick = delEvent;
+$('#evSync').onclick = () => {
+  if (!calReady()) { toast('网页版无法写入手机系统日历。可用「导出为日历（.ics）」生成文件后导入手机日历。', 4400); return; }
+  evSync = !evSync; paintEvSync();
+};
 $('#sdEdit').onclick = () => { const id = curCourseId; hideSheet(); setTimeout(() => openEdit(id), 260); };
 $('#sdDup').onclick = () => {
   const c = S.courses.find(x => x.id === curCourseId);

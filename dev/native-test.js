@@ -106,6 +106,33 @@ window.Capacitor = {
         if (window.__zwReject) return Promise.reject(new Error(window.__zwReject));
         return Promise.resolve({ html: window.__zwHtml || '' });
       }
+    },
+    CalBridge: {
+      // 默认：有权限、有一个主日历。测试里用 __calDenied / __calList / __calCreateReject 改行为。
+      checkPermissions: function () {
+        window.__calls.push(['CalBridge.checkPermissions']);
+        return Promise.resolve({ calendar: window.__calDenied ? 'denied' : 'granted' });
+      },
+      requestPermissions: function () {
+        window.__calls.push(['CalBridge.requestPermissions']);
+        return Promise.resolve({ calendar: window.__calDenied ? 'denied' : 'granted' });
+      },
+      listCalendars: function () {
+        window.__calls.push(['CalBridge.listCalendars']);
+        return Promise.resolve({ calendars: window.__calList || [{ id: '1', name: '手机日历', isPrimary: true }] });
+      },
+      createEvent: function (o) {
+        window.__calls.push(['CalBridge.createEvent', o]);
+        if (window.__calCreateReject) return Promise.reject(new Error(window.__calCreateReject));
+        // id 每次递增：这样「编辑后有没有记住新 id」这种事才验证得出来
+        window.__calSeq = (window.__calSeq || 9000) + 1;
+        return Promise.resolve({ id: String(window.__calSeq) });
+      },
+      deleteEvent: function (o) {
+        window.__calls.push(['CalBridge.deleteEvent', o.id]);
+        if (window.__calDelReject) return Promise.reject(new Error(window.__calDelReject));
+        return Promise.resolve({ deleted: 1 });
+      }
     }
   }
 };
@@ -442,6 +469,111 @@ window.Capacitor = {
     check('取消后不残留导入会话', await evaluate('IMP === null || IMP.awaitZw !== true') === true);
     await evaluate("window.__zwReject = null; hideSheet(); switchTab('sched'); 1");
   }
+
+  console.log('\n【8.6】日程：同步到手机系统日历，以及失败时的降级');
+  await evaluate("S.settings.termStart='2026-09-07'; S.global.showWeekend=true; S.view.week=1; S.events=[]; save(); renderAll(); switchTab('today'); __calls.length=0; 1");
+  const d1 = await evaluate('ymd(baseDate())');
+  check('原生环境下同步开关可用', await evaluate('calReady()') === true);
+  check('同步开关的说明是「写进系统日历」', String(await evaluate("document.querySelector('#evSyncHint').textContent")).indexOf('系统日历') >= 0);
+
+  // ① 新增一条，勾选同步
+  await evaluate("document.querySelector('#btnAddEvent').click(); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#evTitle').value='实训动员会'; document.querySelector('#evDate').value='" + d1 + "';"
+    + " document.querySelector('#evStart').value='14:00'; document.querySelector('#evEnd').value='15:30';"
+    + " document.querySelector('#evPlace').value='A101 报告厅'; document.querySelectorAll('#evRemind .chip')[3].click(); 1");
+  await evaluate("document.querySelector('#evSync').click(); 1");
+  check('同步开关已打开', await evaluate("document.querySelector('#evSync').classList.contains('on')") === true);
+  await evaluate("document.querySelector('#sevSave').click(); 1");
+  await sleep(800);
+  const cC1 = String(await evaluate("JSON.stringify(__calls.filter(function(c){return String(c[0]).indexOf('CalBridge')===0;}))"));
+  check('先查权限再列日历', /CalBridge\.checkPermissions/.test(cC1) && /CalBridge\.listCalendars/.test(cC1), cC1);
+  check('写进系统日历的字段正确',
+    /CalBridge\.createEvent/.test(cC1) && cC1.indexOf('"calendarId":"1"') >= 0
+    && cC1.indexOf('"title":"实训动员会"') >= 0
+    && cC1.indexOf('"begin":"' + d1 + 'T14:00:00"') >= 0
+    && cC1.indexOf('"end":"' + d1 + 'T15:30:00"') >= 0
+    && cC1.indexOf('"location":"A101 报告厅"') >= 0
+    && cC1.indexOf('"remindMinutes":15') >= 0, cC1);
+  check('写成功后记下系统日历的事件 id', await evaluate("!!(S.events.find(e=>e.title==='实训动员会')||{}).cal") === true);
+  check('时间线上标出「已同步日历」', String(await evaluate("document.getElementById('todayList').innerHTML")).indexOf('已同步日历') >= 0);
+
+  // ② 编辑已同步的日程：先删旧、再建新，不能重复
+  const calOld = await evaluate("S.events.find(e=>e.title==='实训动员会').cal.id");
+  await evaluate("__calls.length=0; openEvent(S.events.find(e=>e.title==='实训动员会').id); 1");
+  await sleep(300);
+  check('编辑时同步开关自动打开', await evaluate("document.querySelector('#evSync').classList.contains('on')") === true);
+  await evaluate("document.querySelector('#evTitle').value='实训动员会（改）'; document.querySelector('#sevSave').click(); 1");
+  await sleep(800);
+  const cC2 = String(await evaluate("JSON.stringify(__calls.filter(function(c){return String(c[0]).indexOf('CalBridge')===0;}))"));
+  check('编辑时先删掉系统日历里的旧事件', cC2.indexOf('CalBridge.deleteEvent","' + calOld + '"') >= 0, cC2);
+  check('然后再建一条新的', /CalBridge\.createEvent/.test(cC2) && cC2.indexOf('实训动员会（改）') >= 0);
+  check('日程不会因此变成两条', await evaluate('S.events.length') === 1);
+
+  // ③ 关掉同步再保存：从系统日历移除，本地保留
+  const calNew = await evaluate("S.events[0].cal.id");
+  await evaluate("__calls.length=0; openEvent(S.events[0].id); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#evSync').click(); document.querySelector('#sevSave').click(); 1");
+  await sleep(800);
+  check('关掉同步后从系统日历移除', String(await evaluate('JSON.stringify(__calls)')).indexOf('CalBridge.deleteEvent","' + calNew + '"') >= 0);
+  check('日程本身保留，只是不再同步', await evaluate("!!S.events[0].cal") === false);
+
+  // ④ 删除已同步的日程：系统日历里那条也要清掉
+  await evaluate("__calls.length=0; openEvent(S.events[0].id); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#evSync').click(); document.querySelector('#sevSave').click(); 1");
+  await sleep(800);
+  const calId = await evaluate("S.events[0].cal.id");
+  await evaluate("__calls.length=0; window.confirm=function(){return true;}; openEvent(S.events[0].id); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#sevDel').click(); 1");
+  await sleep(700);
+  check('删除日程后本地没有残留', await evaluate('S.events.length') === 0);
+  check('删除日程会一并清掉系统日历里的事件',
+    String(await evaluate('JSON.stringify(__calls)')).indexOf('CalBridge.deleteEvent","' + calId + '"') >= 0);
+
+  // ⑤ 用户拒绝日历权限：不写日历，但日程必须留在本应用里
+  await evaluate("window.__calDenied=true; __calls.length=0; renderToday(); 1");
+  await evaluate("document.querySelector('#btnAddEvent').click(); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#evTitle').value='权限测试'; document.querySelector('#evDate').value='" + d1 + "';"
+    + " document.querySelector('#evStart').value='08:00'; document.querySelector('#evSync').click();"
+    + " document.querySelector('#sevSave').click(); 1");
+  await sleep(900);
+  const cC5 = String(await evaluate('JSON.stringify(__calls)'));
+  check('权限被拒时不写系统日历', cC5.indexOf('CalBridge.createEvent') < 0, cC5);
+  check('权限失败时日程仍然保存在本应用', await evaluate("S.events.some(e=>e.title==='权限测试')") === true);
+  check('不留下「已同步」的假标记', await evaluate("!!S.events.find(e=>e.title==='权限测试').cal") === false);
+  check('提示里说明了是权限问题', String(await evaluate("document.getElementById('toast').textContent")).indexOf('权限') >= 0,
+    await evaluate("document.getElementById('toast').textContent"));
+  await evaluate("window.__calDenied=false; 1");
+
+  // ⑥ 手机里没有可写入的日历账户
+  await evaluate("window.__calList=[]; __calls.length=0; S.events=[]; save(); renderToday(); 1");
+  await evaluate("document.querySelector('#btnAddEvent').click(); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#evTitle').value='无日历可用'; document.querySelector('#evDate').value='" + d1 + "';"
+    + " document.querySelector('#evStart').value='08:00'; document.querySelector('#evSync').click();"
+    + " document.querySelector('#sevSave').click(); 1");
+  await sleep(900);
+  check('没有可写入的日历时给出明确提示', String(await evaluate("document.getElementById('toast').textContent")).indexOf('可写入') >= 0,
+    await evaluate("document.getElementById('toast').textContent"));
+  check('这种情况日程也仍然留着', await evaluate("S.events.some(e=>e.title==='无日历可用')") === true);
+  await evaluate("window.__calList=null; 1");
+
+  // ⑦ 插件写入直接报错（比如日历账户只读）
+  await evaluate("window.__calCreateReject='日历账户不可写'; __calls.length=0; S.events=[]; save(); renderToday(); 1");
+  await evaluate("document.querySelector('#btnAddEvent').click(); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#evTitle').value='写入失败'; document.querySelector('#evDate').value='" + d1 + "';"
+    + " document.querySelector('#evStart').value='08:00'; document.querySelector('#evSync').click();"
+    + " document.querySelector('#sevSave').click(); 1");
+  await sleep(900);
+  check('写入报错时把原因转达给用户', String(await evaluate("document.getElementById('toast').textContent")).indexOf('日历账户不可写') >= 0,
+    await evaluate("document.getElementById('toast').textContent"));
+  check('写入报错也不丢日程', await evaluate("S.events.some(e=>e.title==='写入失败')") === true);
+  await evaluate("window.__calCreateReject=null; S.events=[]; save(); renderToday(); 1");
 
   console.log('\n【9】运行期错误');
   const real = errs.filter(e => !/favicon|net::ERR_FILE|Failed to load resource/i.test(e));

@@ -42,4 +42,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- 仅用于「检查更新」下载完成后拉起系统安装器；不读取任何已安装应用 -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- 「添加日程 → 同步到系统日历」用：只在用户主动打开该开关时请求，
+         用于把日程写进手机自带的日历，并读取可写入的日历列表；不读取其他数据 -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 </manifest>
