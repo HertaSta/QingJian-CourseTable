@@ -1,0 +1,12 @@
+本目录下的适配脚本来自开源项目「拾光课程表」的脚本仓库：
+
+    https://github.com/ShiGuangSchedule/shiguang_warehouse
+    MIT License, Copyright (c) 2025 星河欲转
+
+由 dev/fetch-schools.py 从原仓库拉取，未做修改；schools.json 是据此生成的索引
+（学校名称、教务网址、脚本文件名均取自原仓库的 root_index.yaml 与各校 adapters.yaml）。
+
+个别脚本的维护者在对应 adapters.yaml 的 maintainer 字段中标注，索引里保留为 by 字段。
+
+按 MIT 许可要求，本应用在使用这些脚本的同时保留上述版权声明，
+并在「设置 → 关于」中向使用者标明来源。
