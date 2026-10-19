@@ -139,18 +139,29 @@ function check(name, cond, extra) {
   check('教程共 6 步', await evaluate("document.querySelectorAll('#tutBody .tut-step').length") === 6,
     String(await evaluate("document.querySelectorAll('#tutBody .tut-step').length")));
   check('含「校园网」前置说明', /校园网/.test(tut));
-  check('含门户地址', tut.indexOf('http://portal.wru.edu.cn/index') >= 0);
-  check('含「学期理论课表」', /学期理论课表/.test(tut));
+  check('含常见课表页名称（学期理论课表）', /学期理论课表/.test(tut));
   check('含导出 Excel 步骤', /Excel/.test(tut));
   check('含「以教务系统…为准」提醒', /以教务系统/.test(tut) && /为准/.test(tut));
-  check('地址就是 PORTAL_URL 常量', await evaluate("document.querySelector('#tutBody .tut-url .u').textContent") === (await evaluate('PORTAL_URL')));
-  // 复制按钮：headless 下剪贴板 API 可能被拒，走 textarea 兜底也要能给出反馈
-  await evaluate("window.__toast=[]; window.__origToast=toast; window.toast=function(m){window.__toast.push(String(m));}; 1");
-  await evaluate("document.querySelector('#tutCopy').click(); 1");
-  await sleep(300);
-  const copyToast = await evaluate('JSON.stringify(window.__toast)');
-  check('复制按钮有结果反馈', /复制|失败/.test(copyToast), copyToast);
-  await evaluate("window.toast=window.__origToast; 1");
+  check('教程已通用化，不再出现本校专属内容', tut.indexOf('portal.wru') < 0 && tut.indexOf('武汉铁路') < 0 && tut.indexOf('铁院') < 0);
+  check('已移除门户链接与复制按钮', await evaluate("!!document.querySelector('#tutBody .tut-url')") === false);
+  // 教程分成两块：教务导入 / 文件导入
+  check('教程分成「从教务系统导入」与「导入 Excel 文件」两块',
+    await evaluate("document.querySelectorAll('#tutTabs .sg').length") === 2);
+  check('网页版默认停在「导入 Excel 文件」',
+    await evaluate("document.querySelector('#tutTabs .sg.on').dataset.t") === 'file');
+  const zwSteps = await evaluate(`(function () {
+      document.querySelector('#tutTabs .sg[data-t="zw"]').click();
+      return document.querySelectorAll('#tutBody .tut-step').length;
+    })()`);
+  check('「从教务系统导入」那块是 5 步', zwSteps === 5, String(zwSteps));
+  check('教务导入那块讲的是应用内直接读课表',
+    /从教务系统导入/.test(await evaluate("document.querySelector('#tutBody').textContent")) &&
+    /执行导入/.test(await evaluate("document.querySelector('#tutBody').textContent")));
+  const fileSteps = await evaluate(`(function () {
+      document.querySelector('#tutTabs .sg[data-t="file"]').click();
+      return document.querySelectorAll('#tutBody .tut-step').length;
+    })()`);
+  check('切回「导入 Excel 文件」恢复 6 步', fileSteps === 6, String(fileSteps));
   // 返回按钮回到导入界面
   await evaluate("document.querySelector('#sheetTutorial .sh-head .ibtn[data-back]').click(); 1");
   check('返回按钮回到导入界面', await evaluate("document.querySelector('#sheetImport').classList.contains('on')"));
@@ -187,6 +198,19 @@ function check(name, cond, extra) {
     S.profile.avatar = c.toDataURL('image/jpeg',0.8); save(); renderMe();
   })()`);
   check('头像渲染为 img', (await evaluate("document.querySelector('#meInfo .av').innerHTML")).indexOf('<img') >= 0);
+
+  // 默认头像（未设置头像时）不应出现任何文字首字母，保持空白
+  await evaluate("S.profile.nickname='清扬'; S.profile.avatar=''; save(); renderMe(); 1");
+  check('默认头像无首字母文字', (await evaluate("document.querySelector('#meInfo .av').textContent.trim()")) === '');
+  check('默认头像无 html 内容', (await evaluate("document.querySelector('#meInfo .av').innerHTML.trim()")) === '');
+  await evaluate("openProfile(); 1");
+  check('资料面板默认头像也为空', (await evaluate("document.getElementById('pfAv').textContent.trim()")) === '');
+  await evaluate("hideSheet(); 1");
+  // 恢复一张头像，避免影响后续断言
+  await evaluate(`(function(){
+    const c=document.createElement('canvas'); c.width=c.height=8; const g=c.getContext('2d'); g.fillStyle='#f0f'; g.fillRect(0,0,8,8);
+    S.profile.avatar = c.toDataURL('image/jpeg',0.8); save(); renderMe();
+  })()`);
 
   /* ---------- 5. 背景图 ---------- */
   console.log('\n【5】自定义背景图');
@@ -321,13 +345,13 @@ function check(name, cond, extra) {
   await new Promise(r => setTimeout(r, 350));
   check('设置入口打开设置弹层', await evaluate("document.querySelector('#sheetSettings').classList.contains('on')") === true);
   const rootTxt = await evaluate("document.querySelector('#sheetSettings').textContent");
-  check('一级列表分为 6 个模块', await evaluate("document.querySelectorAll('#sheetSettings .setlist .navrow').length") === 6);
+  check('一级列表分为 5 个模块', await evaluate("document.querySelectorAll('#sheetSettings .setlist .navrow').length") === 5);
   check('一级列表含「学期与节次」', rootTxt.indexOf('学期与节次') >= 0);
   check('一级列表含「外观」', rootTxt.indexOf('外观') >= 0);
-  check('一级列表含「上课提醒」', rootTxt.indexOf('上课提醒') >= 0);
   check('一级列表含「数据」', rootTxt.indexOf('数据') >= 0);
   check('一级列表含「检查更新」', rootTxt.indexOf('检查更新') >= 0);
   check('一级列表含「关于」', rootTxt.indexOf('关于') >= 0);
+  check('一级列表不含「上课提醒」', rootTxt.indexOf('上课提醒') < 0);
   check('一级列表不再堆具体选项', rootTxt.indexOf('总周数') < 0 && rootTxt.indexOf('导出备份') < 0);
   check('一级列表显示当前状态摘要', /第 \d+ 周 \/ 共 \d+ 周/.test(rootTxt) && /张课程表/.test(rootTxt), rootTxt.replace(/\s+/g, ' ').trim().slice(0, 120));
 
@@ -336,7 +360,6 @@ function check(name, cond, extra) {
   const CATS = [
     ['#sheetTerm', '学期与节次', ['总周数', '节次时间']],
     ['#sheetLook', '外观', ['深色模式', '主题色', '界面背景图']],
-    ['#sheetRemind', '上课提醒', ['提前提醒']],
     ['#sheetData', '数据', ['导出备份', '从备份恢复', '清空当前课程表']],
     ['#sheetUpdate', '检查更新', ['当前版本', '最新版本']],
     ['#sheetAbout', '关于', ['开源免费', '隐私政策']]
@@ -356,11 +379,32 @@ function check(name, cond, extra) {
   }
   check('返回键逐层退回（二级→一级）', await evaluate("SHEET_PARENT['#sheetLook']") === '#sheetSettings', await evaluate("String(SHEET_PARENT['#sheetLook'])"));
 
+  /* 一键导入日历：更多菜单入口 → 弹窗选提醒 → 网页版提示降级 */
+  await evaluate("hideSheet(); document.querySelector('#btnMore').click(); 1");
+  await sleep(300);
+  const moreTxt = await evaluate("document.querySelector('#sheetMore').textContent");
+  check('更多菜单含「一键导入日历」', moreTxt.indexOf('一键导入日历') >= 0);
+  await evaluate("document.querySelector('#smCalImport').click(); 1");
+  await sleep(300);
+  check('点「一键导入日历」打开导入弹窗', await evaluate("document.querySelector('#sheetCalImport').classList.contains('on')") === true);
+  const ci = await evaluate("document.querySelector('#sheetCalImport').textContent");
+  check('导入弹窗含「是否提醒上课」', ci.indexOf('是否提醒上课') >= 0);
+  check('导入弹窗含提醒选择', await evaluate("document.querySelector('#ciRemind').options.length") >= 4);
+  check('导入弹窗含「开始导入」按钮', await evaluate("!!document.querySelector('#btnDoCalImport')") === true);
+  check('导入弹窗含「取消导入」按钮', await evaluate("!!document.querySelector('#btnClearCoursesCal')") === true);
+  // 网页版没有 CalBridge：点开始导入应给降级提示而不是报错
+  const beforeToast = await evaluate("document.querySelector('#toast') ? document.querySelector('#toast').textContent : ''");
+  await evaluate("document.querySelector('#btnDoCalImport').click(); 1");
+  await sleep(500);
+  check('网页版点导入给降级提示', await evaluate("document.querySelector('#sheetCalImport').classList.contains('on')") === true);
+  await evaluate("hideSheet(); 1");
+
   const about = await evaluate("document.querySelector('#aboutCard').textContent");
   check('含当前版本号', about.indexOf('v' + APP_VER) >= 0, APP_VER);
   check('含开发者 澪露', about.indexOf('澪露') >= 0, await evaluate('DEVELOPER'));
   check('含版权声明', about.indexOf('©') >= 0);
-  check('含兼容性说明', about.indexOf('武汉铁路职业技术学院') >= 0);
+  check('含兼容性说明', about.indexOf('兼容性') >= 0 && about.indexOf('两百余所高校') >= 0);
+  check('兼容性说明不再限定单一学校', about.indexOf('完整验证') < 0 && about.indexOf('只适配') < 0 && about.indexOf('仅适配') < 0);
   check('关于里有隐私政策入口', await evaluate("!!document.querySelector('#btnPrivacy')") === true);
   await evaluate("document.querySelector('#btnPrivacy').click(); 1");
   await new Promise(r => setTimeout(r, 350));
@@ -463,6 +507,43 @@ function check(name, cond, extra) {
   check('节次越界的课仍会画到课表上', await evaluate("document.querySelectorAll('#gridBody .cc').length") === 1);
   await evaluate("switchTab('today'); 1");
   check('日程页不出现 undefined', String(await evaluate("document.getElementById('todayList').innerHTML")).indexOf('undefined') < 0);
+
+  // M1 回归：编辑节次越界的课时，下拉要覆盖到实际节次，保存后不归零
+  await evaluate("switchTab('sched'); openEdit('rb1'); 1");
+  await sleep(300);
+  check('节次下拉覆盖到越界节次', await evaluate("document.querySelector('#fS').options.length") >= 14,
+    String(await evaluate("document.querySelector('#fS').options.length")));
+  check('越界课的节次在打开时不丢', await evaluate("document.querySelector('#fS').value") === '13' &&
+    await evaluate("document.querySelector('#fE').value") === '14');
+  await evaluate("document.querySelector('#fName').value='越界课'; document.querySelector('#seSave').click(); 1");
+  await sleep(300);
+  const saved = await evaluate("S.courses.find(c=>c.id==='rb1')");
+  check('保存后节次保持 13-14 不归零', saved.s === 13 && saved.e === 14, JSON.stringify({ s: saved.s, e: saved.e }));
+
+  // M3 回归：损坏 / 被改的备份会被清洗，不污染状态
+  const m3 = await evaluate(`(function(){
+    var t = sanitizeTable({ id:'t1', name:'坏表', createdAt:1, courses:[
+      { name:'好课', day:3, s:2, e:4, weeks:[1,2,3] },
+      { name:'', day:1, s:1, e:1 },
+      { name:'颜色注入', day:1, s:1, e:1, color:'red;background:url(x)' },
+      { day:'不是对象' }
+    ], notes:[{ name:'备注课', weeks:[1] }, { bogus:1 }], events:[
+      { title:'好日程', date:'2026-09-07', start:'09:00', end:'10:00' },
+      { title:'', date:'bad' }
+    ], settings:{ semester:'', periods:'not-array' } });
+    return {
+      names: t.courses.map(function(c){return c.name;}),
+      color: t.courses[0].color,
+      notes: t.notes.length,
+      events: t.events.length,
+      periodsOK: Array.isArray(t.settings.periods) && t.settings.periods.length>0
+    };
+  })()`);
+  check('无 name 的课程被过滤', m3.names.length === 2 && m3.names[0] === '好课' && m3.names[1] === '颜色注入', JSON.stringify(m3.names));
+  check('颜色注入被清洗回默认', !/^#[0-9a-f]{6}$/.test(m3.color) && m3.color.indexOf('url(') < 0, String(m3.color));
+  check('无 name 的备注被过滤', m3.notes === 1, String(m3.notes));
+  check('损坏日程被过滤', m3.events === 1, String(m3.events));
+  check('periods 非数组被重置为默认', m3.periodsOK === true);
 
   // 移除头像属于「立即生效」的操作，应马上落盘
   await evaluate("S.profile.avatar='data:image/jpeg;base64,AAAA'; save(); renderMe(); switchTab('me'); openProfile(); 1");

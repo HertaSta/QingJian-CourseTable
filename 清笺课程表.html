@@ -356,26 +356,10 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .tut-step .tt{font-size:13px;font-weight:800;margin-bottom:4px}
 .tut-step .tx{font-size:12.5px;color:var(--sub);line-height:1.9}
 .tut-step .tx b{color:var(--text)}
-.tut-url{display:flex;align-items:center;gap:8px;margin-top:8px;background:var(--accent-soft);border-radius:10px;padding:7px 10px}
-.tut-url .u{flex:1;min-width:0;font-size:12px;font-weight:700;color:var(--accent);word-break:break-all;line-height:1.5}
-.tut-copy{flex:none;font:inherit;font-size:11.5px;font-weight:700;color:var(--accent);background:transparent;border:1px solid var(--accent);border-radius:8px;padding:3px 9px;cursor:pointer}
-.tut-copy:active{opacity:.6}
 .tut-warn{margin-top:20px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);font-size:12.5px;color:var(--sub);line-height:1.9}
 .tut-warn b{color:var(--text)}
 .tut-tip{margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--accent-soft);font-size:12px;color:var(--sub);line-height:1.8}
 .tut-tip b{color:var(--text)}
-/* 轻量确认弹窗（用于「从教务系统直接导入」的提醒） */
-.zwmodal{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;padding:0 22px}
-.zwmodal.on{display:flex}
-.zwmodal .mask{position:absolute;inset:0;background:rgba(20,16,32,.46)}
-.zwmodal .box{position:relative;width:100%;max-width:330px;background:var(--card);border-radius:18px;padding:20px 18px 14px;box-shadow:0 18px 46px rgba(30,20,60,.24)}
-.zwmodal .mt{font-size:15px;font-weight:800;text-align:center;margin-bottom:10px}
-.zwmodal .ml{font-size:12.5px;color:var(--sub);line-height:1.9}
-.zwmodal .ml b{color:var(--text)}
-.zwmodal .mstep{display:flex;gap:8px;margin-top:11px;font-size:12.5px;color:var(--sub);line-height:1.8}
-.zwmodal .mstep .n{flex:none;width:19px;height:19px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:1px}
-.zwmodal .mbtns{margin-top:16px}
-.zwmodal .mbtns .btn{width:100%}
 /* 更新说明正文：保留换行，过长时内部滚动 */
 .upnotes{font-size:12.5px;color:var(--sub);line-height:1.85;white-space:pre-wrap;overflow-wrap:break-word;max-height:230px;overflow-y:auto;background:var(--field);border-radius:12px;padding:10px 12px;margin-top:4px}
 .slider{width:100%;-webkit-appearance:none;appearance:none;height:5px;border-radius:5px;background:var(--line);outline:none;margin:8px 0 2px}
@@ -389,9 +373,13 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .opt .rd{width:19px;height:19px;border-radius:50%;border:2px solid var(--sub2);flex:none;position:relative}
 .opt.on .rd{border-color:var(--accent)}
 .opt.on .rd::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--grad)}
-.opt .ot{min-width:0}
+.opt .ot{flex:1;min-width:0}
 .opt .ot b{display:block;font-size:14px;font-weight:700}
 .opt .ot small{display:block;font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.45}
+.opt .ot .ucat{display:inline-block;font-size:10.5px;font-weight:800;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:1.5px}
+.opt .go{margin-left:auto;flex:none;display:flex;align-items:center;color:var(--sub2)}
+.opt .go svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.unilist{max-height:44vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-right:2px}
 
 /* ============ 顶栏课表胶囊 ============ */
 .tb-tbl{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:11.5px;font-weight:800;color:var(--accent);background:var(--accent-soft);border:1px solid rgba(var(--sh-tint),.20);border-radius:10px;padding:3px 9px;max-width:210px}
@@ -591,26 +579,21 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
   <div class="sh-body" id="tutBody"></div>
 </div>
 
-<!-- 从教务系统直接导入：跳转前的简短提醒 -->
-<div class="zwmodal" id="zwModal">
-  <div class="mask" id="zwMask"></div>
-  <div class="box">
-    <div class="mt">在应用内打开教务系统</div>
-    <div class="ml">接下来会打开教务系统的登录页，请用学号与统一身份认证密码登录。<b>账号密码不会保存，也不会离开你的手机。</b></div>
-    <div class="mstep"><div class="n">1</div><div>登录后进入「<b>学期理论课表</b>」。</div></div>
-    <div class="mstep"><div class="n">2</div><div>在课表页面上方点「<b>打印</b>」，课表即会开始下载。</div></div>
-    <div class="mstep"><div class="n">3</div><div>应用随后会自动读取课表，回到导入确认页面。</div></div>
-    <div class="mbtns">
-      <button class="btn" id="zwGo">我知道了，去登录</button>
-      <button class="btn sec" id="zwCancel" style="margin-top:8px">取消</button>
-    </div>
+<!-- 从教务系统导入：先选学校，其他学校再选系统类型 + 填网址 -->
+<div class="sheet" id="sheetUni">
+  <div class="sh-head">
+    <button class="ibtn" data-back="#sheetImport" title="返回导入"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="t" id="uniTitle">从教务系统导入</div>
+    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
+  <div class="sh-body" id="uniBody"></div>
 </div>
 
 <!-- 更多菜单 -->
 <div class="sheet" id="sheetMore">
   <div class="sh-head"><div class="t">更多</div><button class="ibtn" id="smCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
   <div class="sh-body">
+    <button class="btn" id="smCalImport">一键导入日历</button>
     <button class="btn sec" id="smTables">切换课程表…</button>
     <button class="btn sec" id="smToday">回到本周</button>
     <button class="btn sec" id="smPrev">查看上一周</button>
@@ -619,6 +602,27 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     <button class="btn sec" id="smPng">导出当前周为图片</button>
     <button class="btn sec" id="smIcs">导出为日历（.ics）</button>
     <button class="btn sec" id="smTpl">下载导入模板（.xlsx）</button>
+  </div>
+</div>
+
+<!-- 一键导入日历 -->
+<div class="sheet" id="sheetCalImport">
+  <div class="sh-head">
+    <div class="t">一键导入日历</div>
+    <button class="ibtn" id="ciCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body">
+    <div class="card">
+      <h3>导入到系统日历</h3>
+      <div class="hint" id="ciState"></div>
+    </div>
+    <div class="card">
+      <h3>是否提醒上课</h3>
+      <div class="row"><span class="k">提醒</span><select id="ciRemind"><option value="0">不提醒</option><option value="5">提前 5 分钟</option><option value="10">提前 10 分钟</option><option value="15">提前 15 分钟</option><option value="30">提前 30 分钟</option></select></div>
+      <div class="hint">把当前课程表逐周展开，写成系统日历事件。开启提醒后，每节课都由系统日历到点弹通知——应用完全退出也会响。改课表后再点一次即可重建。</div>
+    </div>
+    <button class="btn" id="btnDoCalImport">开始导入</button>
+    <button class="btn sec" id="btnClearCoursesCal" style="margin-top:8px">取消导入，清空系统日历里的课程</button>
   </div>
 </div>
 
@@ -671,11 +675,6 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
       <div class="navrow" data-go="#sheetLook">
         <div class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg></div>
         <div class="nt"><b>外观</b><small id="smLook">—</small></div>
-        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
-      </div>
-      <div class="navrow" data-go="#sheetRemind">
-        <div class="ni"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 4.6-1.8 6-1.8 6h15.6S18 13.6 18 9z"/><path d="M10.3 19.5a2 2 0 0 0 3.4 0"/></svg></div>
-        <div class="nt"><b>上课提醒</b><small id="smRemind">—</small></div>
         <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
       </div>
       <div class="navrow" data-go="#sheetData">
@@ -770,22 +769,6 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
   </div>
 </div>
 
-<!-- 设置 · 上课提醒 -->
-<div class="sheet cat" id="sheetRemind">
-  <div class="sh-head">
-    <button class="ibtn" data-back="#sheetSettings" title="返回设置"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-    <div class="t">上课提醒</div>
-    <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-  </div>
-  <div class="sh-body">
-    <div class="card">
-      <h3>提醒时间</h3>
-      <div class="row"><span class="k">提前提醒</span><select id="setRemind"><option value="0">关闭</option><option value="5">5 分钟</option><option value="10">10 分钟</option><option value="15">15 分钟</option><option value="20">20 分钟</option><option value="30">30 分钟</option></select></div>
-      <div class="hint" id="remindHint">应用需在后台保持运行才会提醒，完全退出后不再提醒。</div>
-    </div>
-  </div>
-</div>
-
 <!-- 设置 · 数据 -->
 <div class="sheet cat" id="sheetData">
   <div class="sh-head">
@@ -797,8 +780,8 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     <div class="card">
       <h3>导入</h3>
       <button class="btn sec" id="btnImport2">导入 Excel 课程表</button>
-      <button class="btn sec native-only" id="btnImportZw">从教务系统直接导入</button>
-      <div class="hint">支持教务系统导出的 .xlsx / .xls 文件，导入时可选择覆盖、新建或合并到当前课程表。</div>
+      <button class="btn sec native-only" id="btnImportZw">从教务系统导入</button>
+      <div class="hint">导入 Excel：支持教务系统导出的 .xlsx / .xls 文件，导入时可选择覆盖、新建或合并到当前课程表。<br>从教务系统导入（安卓版）：在应用内选择学校并登录，自动读取课表，不必先导出文件。</div>
     </div>
     <div class="card">
       <h3>导出</h3>
@@ -829,7 +812,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
       <div class="row"><span class="k">当前版本</span><span class="muted" id="upCur" style="font-size:13px">—</span></div>
       <div class="row"><span class="k">最新版本</span><span class="muted" id="upLatest" style="font-size:13px">未检查</span></div>
       <button class="btn" id="btnCheckUpdate" style="margin-top:12px">检查更新</button>
-      <div class="hint" id="upHint">点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除此之外应用不联网。</div>
+      <div class="hint" id="upHint">点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除「从教务系统导入」外，应用不会主动联网。</div>
     </div>
     <div class="card hidden" id="upCard">
       <h3>更新内容</h3>
@@ -989,9 +972,9 @@ const WEEK_CN = ['','星期一','星期二','星期三','星期四','星期五',
 const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
-const APP_VERSION = '0.1.6';
+const APP_VERSION = '0.1.7';
 /* 正式版留空 ''；测试版填 'test'。
-   测试版是独立包名（com.reiro.qingjian.test）、独立排号（v0.1、v0.2…），与正式版共存，
+   测试版是独立包名（com.reiro.qingjian.test）、独立排号（v0.0.1、v0.0.2…），与正式版共存，
    也不对应 GitHub 上的任何 Release —— 所以测试版不做更新检查，
    免得把正式版的安装包当成「新版本」推过去。打测试版时这里改成 'test'。 */
 const APP_BUILD = '';
@@ -1043,6 +1026,68 @@ function activeTable() {
   let t = S.tables.find(x => x.id === S.activeId);
   if (!t) { t = S.tables[0]; S.activeId = t.id; }
   return t;
+}
+/* 清洗从外部（备份恢复 / 旧数据迁移）进来的课表：只保留结构合法的数据，
+   防止损坏或被篡改的备份把非对象课程、非法节次、脚本串进状态。
+   courses/notes/events 只保留真正是对象（或对象数组）的项；字段逐个白名单过滤。 */
+function sanitizeTable(t) {
+  if (!t || typeof t !== 'object') return null;
+  const clean = {
+    id: (typeof t.id === 'string' && t.id) ? t.id : uid(),
+    name: String(t.name == null ? '' : t.name).slice(0, 80) || '课程表',
+    createdAt: +t.createdAt || Date.now()
+  };
+  const isCourse = c => !!c && typeof c === 'object' && typeof c.name === 'string' && c.name.trim()
+    && (+c.day) >= 1 && (+c.day) <= 7
+    && Math.max(1, +c.s || 1) >= 1 && Math.max(1, +c.e || 1) >= 1
+    && (+c.s) <= 99 && (+c.e) <= 99;
+  clean.courses = (Array.isArray(t.courses) ? t.courses : []).filter(isCourse).map(c => {
+    const o = {
+      id: (typeof c.id === 'string' && c.id) ? c.id : uid(),
+      name: String(c.name).slice(0, 200),
+      day: Math.max(1, Math.min(7, +c.day || 1)), s: Math.max(1, +c.s || 1), e: Math.max(1, +c.e || 1),
+      teacher: String(c.teacher == null ? '' : c.teacher).slice(0, 120),
+      room: String(c.room == null ? '' : c.room).slice(0, 120),
+      note: String(c.note == null ? '' : c.note).slice(0, 500),
+      color: /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '',
+      weeks: Array.isArray(c.weeks) ? c.weeks.map(w => +w).filter(w => w >= 1 && w <= 200) : null,
+      roomShort: ''
+    };
+    if (!o.weeks || !o.weeks.length) o.weeks = null;
+    o.roomShort = shortRoom(o.room);
+    return o;
+  });
+  clean.notes = (Array.isArray(t.notes) ? t.notes : []).filter(n => !!n && typeof n === 'object' && typeof n.name === 'string').map(n => ({
+    name: String(n.name == null ? '' : n.name).slice(0, 200),
+    teacher: String(n.teacher == null ? '' : n.teacher).slice(0, 120),
+    weeks: Array.isArray(n.weeks) ? n.weeks.map(w => +w).filter(w => w >= 1 && w <= 200) : null,
+    raw: String(n.raw == null ? '' : n.raw).slice(0, 500)
+  }));
+  clean.events = (Array.isArray(t.events) ? t.events : []).filter(v => !!v && typeof v === 'object' && typeof v.title === 'string' && v.title.trim()).map(v => ({
+    id: (typeof v.id === 'string' && v.id) ? v.id : ('ev' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
+    title: String(v.title).slice(0, 120),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(String(v.date)) ? String(v.date) : '',
+    start: /^\d{1,2}:\d{2}$/.test(String(v.start)) ? String(v.start) : '09:00',
+    end: /^\d{1,2}:\d{2}$/.test(String(v.end)) ? String(v.end) : '10:00',
+    place: String(v.place == null ? '' : v.place).slice(0, 120),
+    note: String(v.note == null ? '' : v.note).slice(0, 500),
+    color: /^#[0-9a-f]{6}$/i.test(v.color) ? v.color : PALETTE[0],
+    remind: Math.max(0, +v.remind || 0),
+    cal: (v.cal && typeof v.cal === 'object' && v.cal.id) ? { id: String(v.cal.id), name: String(v.cal.name || '') } : null
+  }));
+  clean.settings = Object.assign(blankSettings(), (t.settings && typeof t.settings === 'object') ? t.settings : {});
+  if (!Array.isArray(clean.settings.periods) || !clean.settings.periods.length) clean.settings.periods = JSON.parse(JSON.stringify(DEFAULT_PERIODS));
+  // 保留「课程已同步到系统日历」的状态，让恢复备份后再同步能先清掉旧事件，避免重复
+  if (t.calSync && typeof t.calSync === 'object') {
+    const cs = t.calSync;
+    clean.calSync = {
+      calendarId: String(cs.calendarId || ''), calendarName: String(cs.calendarName || ''),
+      remind: Math.max(0, +cs.remind || 0), at: +cs.at || Date.now(),
+      courses: (Array.isArray(cs.courses) ? cs.courses : []).filter(g => g && typeof g === 'object')
+        .map(g => ({ id: String(g.id || ''), evIds: Array.isArray(g.evIds) ? g.evIds.map(x => String(x)).filter(Boolean) : [] }))
+    };
+  }
+  return clean;
 }
 function tableMeta(t) {
   const n = new Set((t.courses || []).map(c => c.name)).size;
@@ -1267,6 +1312,8 @@ function parseWeeks(str, total) {
     if (r) {
       let a = +r[1], b = +r[2];
       if (a > b) { const x = a; a = b; b = x; }
+      if (a > 99) return;              // 超出有效周次上限，跳过（防恶意超长循环）
+      if (b > 99) b = 99;
       for (let i = a; i <= b; i++) set.add(i);
       return;
     }
@@ -1485,65 +1532,69 @@ function openImport() {
     '<div class="muted" style="padding:6px 0 14px">选择学校教务系统导出的课程表文件（支持 .xlsx / .xls / .csv）。<br>会自动识别格式、解析周次与节次，不需要手工整理。</div>' +
     '<button class="btn" id="siPick">选择文件</button>' +
     (canZw
-      ? '<button class="btn" id="siZw" style="margin-top:8px">从教务系统直接导入</button>' +
-        '<div class="hint" style="margin:6px 0 0">在应用内打开教务系统，登录后到「学期理论课表」点上方「打印」，应用会自动读取课表，不用先导出文件。不保存账号密码，每次都需要你手动登录。</div>'
+      ? '<button class="btn" id="siUni" style="margin-top:8px">从教务系统导入</button>' +
+        '<div class="hint" style="margin:6px 0 0">在应用内打开教务系统，登录后按提示操作，应用会自动读取课表，不用先导出文件。内置两百余所高校的教务系统适配（含本校），列表里没有的学校也能自行选择系统类型并填写网址。不保存账号密码，每次都需要你手动登录。</div>'
       : '') +
     '<button class="btn sec" id="siTut" style="margin-top:8px">查看导入教程</button>' +
     '<button class="btn sec" id="siTpl" style="margin-top:8px">下载导入模板（.xlsx）</button>' +
     '<div class="hint" style="margin-top:14px">已支持：<br>① 大节网格表（行=第X大节，列=星期一～日）<br>② 通用明细表（每行一门课）<br>③ 通用网格表（行=节次，列=星期）</div>';
   showSheet('#sheetImport');
   $('#siPick').onclick = () => $('#fileXlsx').click();
-  if (canZw && $('#siZw')) $('#siZw').onclick = importFromZw;
+  if (canZw && $('#siUni')) $('#siUni').onclick = openUniImport;
   $('#siTut').onclick = () => { renderTutorial(); showSheet('#sheetTutorial'); };
   $('#siTpl').onclick = downloadTemplate;
 }
 
-/* ---- 导入教程：教务系统怎么把课表导出来 ---- */
-const PORTAL_URL = 'http://portal.wru.edu.cn/index';
+/* ---- 导入教程：分「从教务系统导入」与「导入 Excel 文件」两块 ---- */
+let TUT_TAB = '';   // '' = 还没选过；首次打开按运行环境取默认（安卓版偏前者，网页版只能用后者）
 function renderTutorial() {
   const step = (n, t, x) =>
     '<div class="tut-step"><div class="no">' + n + '</div><div class="bd">' +
     '<div class="tt">' + t + '</div><div class="tx">' + x + '</div></div></div>';
-  $('#tutBody').innerHTML =
-    '<p class="tut-lead">本应用只负责把课表文件显示出来，课表本身需要你从学校教务系统导出。下面是导出课表的完整步骤。</p>' +
-    step(1, '连接校园网',
-      '教务系统与铁院门户只在校园网内可以访问。请先连上学校的 Wi‑Fi 或接入校园网，用手机流量打不开。') +
-    step(2, '进入智慧校园',
-      '打开<b>武汉铁路职业技术学院</b>官网，在首页找到「<b>智慧校园</b>」入口进入铁院门户；也可以直接在浏览器里访问门户地址。' +
-      '<div class="tut-url"><span class="u">' + PORTAL_URL + '</span>' +
-      '<button class="tut-copy" id="tutCopy">复制</button></div>') +
-    step(3, '登录门户',
-      '用学号与统一身份认证密码登录。密码遗忘或首次登录，按门户页面上的提示处理。') +
-    step(4, '打开「学期理论课表」',
-      '在门户里进入教务系统，找到「<b>学期理论课表</b>」并打开。不同学期的菜单文字可能略有差别，以门户里能查到自己课表的那一项为准。') +
-    step(5, '点「打印」保存课表',
-      '在课表页面的<b>上方</b>找到「<b>打印</b>」按钮，点它。教务系统会直接把课表下载成 Excel 文件（.xlsx 或 .xls），并不会真的去打印。' +
-      '<div class="tut-tip">课表页面里没有单独的「导出」按钮，保存课表就是靠点上方这个「打印」。下载后到手机的「文件管理 → 下载」里能找到。</div>') +
-    step(6, '回到本应用导入',
-      '返回导入页面点「选择文件」，选中刚下载的文件即可。导入时会让你核对解析结果，再选择覆盖、另存为新课程表或合并到当前课程表。' +
-      '<div class="tut-tip">也可以在导入页面点「从教务系统直接导入」，在应用内登录教务系统，登录后到学期理论课表点一下「打印」，应用会自动读取课表，不用来回切浏览器。</div>') +
-    '<div class="tut-warn">课表<b>以教务系统和铁院门户的查询结果为准</b>。本应用只做本地展示，不会改动课表内容；遇到调课、停课或临时调整，请以教务系统与任课教师的通知为准。</div>';
-  $('#tutCopy').onclick = () => copyText(PORTAL_URL);
-}
-/* 复制文本：优先用剪贴板 API，网页版（非安全上下文）退回 textarea */
-function copyText(txt) {
-  const done = () => toast('链接已复制');
-  const fallback = () => {
-    const ta = document.createElement('textarea');
-    ta.value = txt;
-    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
-    document.body.appendChild(ta);
-    ta.select();
-    let okCopy = false;
-    try { okCopy = document.execCommand('copy'); } catch (e) { okCopy = false; }
-    ta.remove();
-    okCopy ? done() : toast('复制失败，请手动记录链接', 2600);
-  };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(done, fallback);
-  } else fallback();
-}
+  const tab = TUT_TAB || (isNative() ? 'zw' : 'file');
 
+  const zwBody =
+    '<p class="tut-lead">在应用内直接打开学校教务系统，登录后把课表读回来 —— 不用自己导出文件。</p>' +
+    step(1, '连接校园网',
+      '多数学校的教务系统只在校园网内可以访问，请先连上学校的 Wi‑Fi 或接入校园网；用手机流量可能打不开。') +
+    step(2, '在列表里找到自己的学校',
+      '返回导入页面点「<b>从教务系统导入</b>」，按类别找到自己的学校，也可以直接搜索校名。' +
+      '<div class="tut-tip">列表里没有的学校，选最下面的「<b>其他学校</b>」，选择教务系统类型并填写贵校教务网址，再点「打开教务系统」。</div>') +
+    step(3, '登录教务系统',
+      '点一下学校名，应用内会打开该校教务系统的登录页。用学号与统一身份认证密码登录。' +
+      '<div class="tut-tip">账号密码只在教务系统页面里输入，<b>本应用不读取、不保存、不上传</b>，每次都需要你手动登录。</div>') +
+    step(4, '读取课表',
+      '登录成功后应用会<b>自动读取</b>课表；万一没有读到，先打开课表页面（常见名称：「学期理论课表」「我的课表」），再点窗口顶部的「<b>执行导入</b>」。') +
+    step(5, '核对并导入',
+      '读到的课表会回到确认页面。核对课程、周次与节次时间，再选择覆盖、另存为新课程表或合并到当前课程表。');
+
+  const fileBody =
+    '<p class="tut-lead">先在教务系统里把课表导出成 Excel 文件，再回到本应用导入。网页版与安卓版都能用。</p>' +
+    step(1, '连接校园网',
+      '多数学校的教务系统只在校园网内可以访问，请先连上学校的 Wi‑Fi 或接入校园网；用手机流量可能打不开。') +
+    step(2, '进入教务系统',
+      '在浏览器里打开你所在学校的教务系统。通常从学校官网的「智慧校园」「教务处」等入口进入，部分学校会先跳到统一身份认证页面。') +
+    step(3, '登录',
+      '用学号与统一身份认证密码登录。密码遗忘或首次登录，按页面上的提示处理。') +
+    step(4, '打开课表页面',
+      '在教务系统里找到课表查询，常见的名称有「<b>学期理论课表</b>」「我的课表」「课表查询」等；打开当前学期的那一张，确认课表已经显示出来。') +
+    step(5, '导出为 Excel',
+      '在课表页面上方找到「<b>打印</b>」或「<b>导出</b>」按钮并点击，把课表保存成 Excel 文件（.xlsx 或 .xls）。' +
+      '<div class="tut-tip">有的系统点「打印」会直接下载文件，并不会真的去打印。下载后到手机的「文件管理 → 下载」里能找到；如果只弹出打印预览，可在预览窗口里选「导出 / 另存为」。</div>') +
+    step(6, '回到本应用导入',
+      '返回导入页面点「选择文件」，选中刚下载的文件即可。导入时会让你核对解析结果，再选择覆盖、另存为新课程表或合并到当前课程表。');
+
+  $('#tutBody').innerHTML =
+    '<div class="seg" id="tutTabs" style="margin:2px 0 14px">' +
+      '<button type="button" class="sg' + (tab === 'zw' ? ' on' : '') + '" data-t="zw">从教务系统导入</button>' +
+      '<button type="button" class="sg' + (tab === 'file' ? ' on' : '') + '" data-t="file">导入 Excel 文件</button>' +
+    '</div>' +
+    (tab === 'zw' ? zwBody : fileBody) +
+    '<div class="tut-warn">课表<b>以教务系统的查询结果为准</b>。本应用只做本地展示，不会改动课表内容；遇到调课、停课或临时调整，请以教务系统与任课教师的通知为准。</div>';
+  $$('#tutTabs .sg').forEach(b => {
+    b.onclick = () => { TUT_TAB = b.dataset.t; renderTutorial(); };
+  });
+}
 function handleFile(file) {
   const fr = new FileReader();
   fr.onload = e => {
@@ -2177,15 +2228,8 @@ function showImportConfirm() {
   const maxP = R.periods.length ? R.periods[R.periods.length - 1].n : 10;
   const cur = activeTable();
   const defName = (meta.semester ? meta.semester + '　' : '') + (meta.className || '导入的课程表');
-  $('#siTitle').textContent = '确认导入';
-  $('#siBody').innerHTML =
-    '<div class="muted" style="padding:6px 0 12px">' +
-      (meta.school ? '🏫 ' + esc(meta.school) + '<br>' : '') +
-      (meta.student ? '👤 ' + esc(meta.student) + (meta.className ? '　' + esc(meta.className) : '') + '<br>' : '') +
-      (meta.semester ? '📅 学期 ' + esc(meta.semester) + '<br>' : '') +
-      '✅ 共解析出 <b>' + total + '</b> 条课程记录，' + names.length + ' 门课，每天 ' + maxP + ' 节。' +
-      (R.notes && R.notes.length ? '<br>📌 另有 ' + R.notes.length + ' 门无固定时间的课（来自备注）。' : '') +
-    '</div>' +
+  // 教务脚本直接带回开学日期时，不必再问「本周是第几周」，整段收起来
+  const wkSection = (IMP && IMP.fixedStart) ? '' :
     '<div class="fgroup"><div class="flabel">周次怎么定？</div>' +
       '<div class="seg" id="imWkSeg">' +
         '<button type="button" class="sg on" data-m="now">按「本周是第几周」</button>' +
@@ -2205,7 +2249,18 @@ function showImportConfirm() {
         '<input class="finput" type="date" id="imStart" value="' + guessedStart + '">' +
         '<div class="hint">直接指定第 1 周的周一，适用于往期学期补录。</div>' +
       '</div>' +
+    '</div>';
+  $('#siTitle').textContent = '确认导入';
+  $('#siBody').innerHTML =
+    '<div class="muted" style="padding:6px 0 12px">' +
+      (meta.school ? '🏫 ' + esc(meta.school) + '<br>' : '') +
+      (meta.student ? '👤 ' + esc(meta.student) + (meta.className ? '　' + esc(meta.className) : '') + '<br>' : '') +
+      (meta.semester ? '📅 学期 ' + esc(meta.semester) + '<br>' : '') +
+      '✅ 共解析出 <b>' + total + '</b> 条课程记录，' + names.length + ' 门课，每天 ' + maxP + ' 节。' +
+      (R.notes && R.notes.length ? '<br>📌 另有 ' + R.notes.length + ' 门无固定时间的课（来自备注）。' : '') +
+      (IMP && IMP.fixedStart ? '<br>📆 开学日期 ' + esc(IMP.fixedStart) + '（教务系统提供）' : '') +
     '</div>' +
+    wkSection +
     '<div class="fgroup"><div class="flabel">这份课表要怎么放？</div>' +
       '<div id="imModeBox">' +
       opt('replace', '覆盖当前课程表', '清空「' + cur.name + '」中现有的 ' + cur.courses.length + ' 条课程，替换为本次导入的内容') +
@@ -2234,6 +2289,7 @@ function showImportConfirm() {
     };
   });
   // 周次：默认按「本周是第几周」填，也可以切到日期方式
+  // （脚本直接带回开学日期时这一段不渲染，下面都要判空）
   IMP.weekMode = 'now';
   $$('#imWkSeg .sg').forEach(el => {
     el.onclick = () => {
@@ -2245,15 +2301,18 @@ function showImportConfirm() {
   });
   const stepImpWeek = d => {
     const el = $('#imNowWeek');
-    el.value = Math.max(1, Math.min(30, (Math.round(+el.value) || 1) + d));
+    if (el) el.value = Math.max(1, Math.min(30, (Math.round(+el.value) || 1) + d));
   };
-  $('#imWkMinus').onclick = () => stepImpWeek(-1);
-  $('#imWkPlus').onclick = () => stepImpWeek(1);
+  const wkMinus = $('#imWkMinus'), wkPlus = $('#imWkPlus');
+  if (wkMinus) wkMinus.onclick = () => stepImpWeek(-1);
+  if (wkPlus) wkPlus.onclick = () => stepImpWeek(1);
   showSheet('#sheetImport');
 }
 
-/* 取导入时用户选的周次设置 → 「第1周 周一」 */
+/* 取导入时用户选的周次设置 → 「第1周 周一」
+   教务脚本有时会直接带回开学日期（如超星脚本），此时不必再问「本周是第几周」。 */
 function importTermStart() {
+  if (IMP && IMP.fixedStart) return IMP.fixedStart;
   if (IMP && IMP.weekMode === 'date') {
     const el = $('#imStart');
     return el ? el.value : '';
@@ -2554,11 +2613,16 @@ async function syncEventToCal(e, replace) {
     const list = (cals && cals.calendars) || [];
     if (!list.length) throw new Error('手机里没有可写入的日历账户');
     const target = list.find(c => c.isPrimary) || list[0];
+    // 结束时间不晚于开始（跨天）时，结束落在次日，避免生成 DTEND 早于 DTSTART 的非法事件
+    const sM = toMin(e.start), eM = toMin(e.end);
+    const crossDay = (sM != null && eM != null && eM <= sM);
+    // 跨天时结束落在次日（endDate 是 Date 才算 ymd；非跨天直接用原日期字符串）
+    const endDateStr = crossDay ? ymd(addDays(parseYmd(e.date) || new Date(), 1)) : e.date;
     const res = await P.createEvent({
       calendarId: String(target.id),
       title: e.title,
       begin: e.date + 'T' + e.start + ':00',
-      end: e.date + 'T' + e.end + ':00',
+      end: endDateStr + 'T' + e.end + ':00',
       location: e.place || '',
       description: e.note || '',
       remindMinutes: e.remind || 0
@@ -2593,6 +2657,143 @@ async function ensureCalPermission(P) {
   } catch (e) {
     return true;   // 插件没有权限方法时，交给 createEvent 自己弹系统授权框
   }
+}
+
+/* ================================================================
+   一键导入日历：把课程批量同步到系统日历
+   ================================================================
+   上课提醒靠系统日历到点弹通知，应用完全退出也会响（不依赖页面轮询）。
+   做法：把当前课表的每一门课、在它出现的每一个周次，逐条写成系统日历事件，
+   每节都带提前提醒（由调用方传入 remindMinutes 分钟）。同步状态记在当前课表的
+   t.calSync 上，重复同步会先清掉旧的再重建，避免日历里堆重复。 */
+function calSyncState() {
+  const t = activeTable();
+  const cs = t.calSync;
+  if (!cs) return '';
+  const rm = cs.remind > 0 ? '，每节提前 ' + cs.remind + ' 分钟' : '，不提醒';
+  return '已同步 ' + (cs.courses || []).reduce((n, x) => n + (x.evIds ? x.evIds.length : 0), 0) +
+    ' 节课 → ' + (cs.calendarName || '系统日历') + rm +
+    '（' + (new Date(cs.at).toLocaleString().slice(5, 14) || '') + '）';
+}
+function renderCalImportSheet() {
+  const el = $('#ciState'); if (!el) return;
+  const cs = activeTable().calSync;
+  el.textContent = cs ? '当前状态：' + calSyncState() : (calReady() ? '尚未同步' : '网页版无法写入系统日历');
+  if ($('#btnDoCalImport')) $('#btnDoCalImport').textContent = cs ? '重新导入（重建系统日历）' : '开始导入';
+}
+async function syncCoursesToCal(remindMinutes) {
+  const t = activeTable();
+  const st = t.settings;
+  const periods = st.periods || [];
+  const mon = mondayOf(parseYmd(st.termStart) || defaultTermStart());
+  const totalW = st.totalWeeks || 20;
+  const rm = Math.max(0, +remindMinutes || 0);
+  const P = calPlugin();
+  if (!calReady() || !P) {
+    toast('网页版无法写入系统日历。可以用「导出为日历（.ics）」生成文件导入手机日历。', 4200);
+    return;
+  }
+  if (!t.courses.length) { toast('当前课程表还没有课程，先导入 Excel 或手动添加'); return; }
+
+  // 收集所有要写的事件，先生成清单（内存里算好，不中途插错）
+  const plan = [];   // {uid, name, begin, end, location, description, remind}
+  t.courses.forEach(c => {
+    const ps = periods.find(x => x.n === c.s), pe = periods.find(x => x.n === c.e);
+    if (!ps || !pe || !ps.start || !pe.end) return;
+    let weeks = (c.weeks && c.weeks.length) ? c.weeks.slice() : null;
+    if (!weeks) { weeks = []; for (let i = 1; i <= totalW; i++) weeks.push(i); }
+    weeks.forEach(w => {
+      if (!w || w < 1 || w > 200) return;
+      const d = addDays(mon, (w - 1) * 7 + (c.day - 1));
+      if (!d) return;
+      const begin = ymd(d) + 'T' + ps.start + ':00';
+      const end = ymd(d) + 'T' + pe.end + ':00';
+      plan.push({
+        uid: c.id + '-w' + w,
+        name: c.name,
+        begin: begin, end: end,
+        location: c.room || '',
+        description: [c.teacher ? '教师：' + c.teacher : '',
+          '第 ' + c.s + '-' + c.e + ' 节（' + ps.start + '-' + pe.end + '）',
+          '第 ' + w + ' 周 星期' + (DAY_SHORT[c.day] || c.day)].filter(Boolean).join('\n'),
+        remind: rm
+      });
+    });
+  });
+  if (!plan.length) { toast('没有能同步的课程，请检查节次时间是否完整'); return; }
+
+  toast('正在同步课程到系统日历（共 ' + plan.length + ' 节）…', 1600);
+  try {
+    if (!(await ensureCalPermission(P))) throw new Error('没有取得日历权限，请在系统设置里允许本应用访问日历');
+    const cals = await P.listCalendars();
+    const list = (cals && cals.calendars) || [];
+    if (!list.length) throw new Error('手机里没有可写入的日历账户');
+    const target = list.find(c => c.isPrimary) || list[0];
+
+    // 先把上一次同步写进日历的事件清掉，避免重复
+    const old = t.calSync;
+    if (old && old.courses) {
+      for (const g of old.courses) {
+        if (!g || !g.evIds) continue;
+        for (const id of g.evIds) {
+          try { await P.deleteEvent({ id: id }); } catch (e) {}
+        }
+      }
+    }
+
+    // 逐条写入，记录每个课程对应的事件 id
+    const groups = {};   // uid → evId
+    let done = 0;
+    for (const ev of plan) {
+      const res = await P.createEvent({
+        calendarId: String(target.id),
+        title: ev.name,
+        begin: ev.begin,
+        end: ev.end,
+        location: ev.location,
+        description: ev.description,
+        remindMinutes: ev.remind
+      });
+      if (res && res.id) groups[ev.uid] = String(res.id);
+      done++;
+      if (done % 20 === 0) toast('已写入 ' + done + '/' + plan.length + ' 节…', 900);
+    }
+
+    // 把事件 id 归并回每个课程
+    const byCourse = {};
+    Object.keys(groups).forEach(uid => {
+      const ci = uid.lastIndexOf('-w');
+      const cid = ci > 0 ? uid.slice(0, ci) : uid;
+      if (!byCourse[cid]) byCourse[cid] = [];
+      byCourse[cid].push(groups[uid]);
+    });
+    t.calSync = {
+      calendarId: String(target.id), calendarName: target.name || '',
+      remind: rm, at: Date.now(),
+      courses: t.courses.map(c => ({ id: c.id, evIds: byCourse[c.id] || [] }))
+    };
+    save(); renderCalImportSheet(); renderSettingsRoot();
+    toast(rm > 0 ? '已同步 ' + plan.length + ' 节课到系统日历，每节提前 ' + rm + ' 分钟提醒'
+      : '已同步 ' + plan.length + ' 节课到系统日历', 3600);
+  } catch (err) {
+    toast('没能同步课程到系统日历：' + ((err && err.message) || err) + '。课表数据不受影响。', 4600);
+  }
+}
+/* 取消同步：把日历里的事件清掉，状态重置 */
+async function clearCoursesFromCal() {
+  const t = activeTable();
+  const old = t.calSync;
+  const P = calPlugin();
+  t.calSync = null; save(); renderCalImportSheet(); renderSettingsRoot();
+  if (!P || !old || !old.courses) return;
+  toast('正在清理系统日历…', 1200);
+  try {
+    for (const g of old.courses) {
+      if (!g || !g.evIds) continue;
+      for (const id of g.evIds) { try { await P.deleteEvent({ id: id }); } catch (e) {} }
+    }
+    toast('已清理，系统日历里的课程提醒已移除', 2800);
+  } catch (e) { toast('系统日历里可能还有残留，可到日历里手动删除', 3600); }
 }
 function delEvent() {
   const e = curEventId ? (S.events || []).find(x => x.id === curEventId) : null;
@@ -2644,11 +2845,10 @@ function renderCourseList() {
 function renderMe() {
   const st = S.settings, pf = S.profile;
   const uname = pf.nickname || st.student || '同学';
-  const initial = String(uname).trim().slice(0, 1) || '清';
 
   $('#meInfo').innerHTML =
     '<div class="prof">' +
-      '<div class="av">' + (pf.avatar ? '<img src="' + esc(pf.avatar) + '" alt="">' : esc(initial)) + '</div>' +
+      '<div class="av">' + (pf.avatar ? '<img src="' + esc(pf.avatar) + '" alt="">' : '') + '</div>' +
       '<div style="min-width:0;flex:1">' +
         '<div class="pn">' + esc(uname) + '</div>' +
         '<div class="ps">' +
@@ -2671,7 +2871,6 @@ function renderMe() {
   $('#swDark').className = 'sw' + (S.global.dark ? ' on' : '');
   $('#swWeekend').className = 'sw' + (S.global.showWeekend !== false ? ' on' : '');
   renderThemePalette();
-  $('#setRemind').value = String(S.global.remind || 0);
   applyBackground();
 
   $('#periodEditor').innerHTML = (st.periods || []).map(p =>
@@ -2704,8 +2903,6 @@ function renderSettingsRoot() {
   set('smTerm', '第 ' + wk + ' 周 / 共 ' + total + ' 周');
   set('smLook', currentThemeName() + '　·　' + (S.global.dark ? '深色模式' : '浅色模式') +
     (S.global.showWeekend === false ? '　·　不显示周末' : ''));
-  const rm = S.global.remind || 0;
-  set('smRemind', rm ? '课前 ' + rm + ' 分钟' : '已关闭');
   set('smData', S.tables.length + ' 张课程表　·　' + S.courses.length + ' 条课程');
   set('smUpdate', UPD.state === 'found' && UPD.latest ? '有新版本 v' + UPD.latest.version
     : UPD.state === 'latest' ? '已是最新 v' + APP_VERSION
@@ -2857,7 +3054,7 @@ function renderUpdate() {
   const hint = $('#upHint');
   if (hint) hint.textContent = UPD.state === 'error'
     ? '检查失败（' + UPD.error + '）。可以稍后重试，也可以用下面的按钮用浏览器下载。'
-    : '点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除此之外应用不联网。';
+    : '点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除「从教务系统导入」外，应用不会主动联网。';
 }
 async function checkUpdate(manual) {
   if (APP_BUILD) { toast('测试版不做更新检查'); return; }
@@ -2903,6 +3100,20 @@ async function runInstaller(OP, uri) {
   } catch (e) {
     toast('安装包已下载，但没能自动打开安装器。若系统提示「不允许安装应用」，请到系统设置里允许本应用安装未知应用，再点「重新下载」。', 6000);
   }
+}
+/* 给下载好的安装包算 SHA-256（hex），用于与 GitHub API 声明的 digest 比对，
+   防止镜像被污染 / 中间人篡改。WebView 里 crypto.subtle 需 secure context（Capacitor 用 https://localhost，可用）。 */
+async function sha256Hex(b64) {
+  try {
+    const bin = atob(String(b64 || ''));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const buf = await crypto.subtle.digest('SHA-256', bytes);
+    const arr = new Uint8Array(buf);
+    let h = '';
+    for (let i = 0; i < arr.length; i++) h += arr[i].toString(16).padStart(2, '0');
+    return h;
+  } catch (e) { return null; }   // 环境不支持时跳过校验（仍保留体积核对）
 }
 async function downloadUpdate() {
   if (UPD.state === 'downloading') return;
@@ -2952,6 +3163,22 @@ async function downloadUpdate() {
           lastErr = got > 0 ? '下载的文件不完整' : '下载的文件为空';
           try { await FS.deleteFile({ path: name, directory: 'CACHE' }); } catch (_) { }
           continue;
+        }
+        // 完整性校验：GitHub 给了 digest 时，能读到文件就算 SHA-256 逐字节比对。
+        // 算出来且不匹配 → 这条线路被篡改，换下一源；读不到/环境不支持 → 降级放行
+        // （仍有体积核对兜底，且 webview 里一般能读到）。千万别把「读不到」误当篡改而卡死下载。
+        if (info.sha256) {
+          let realHash = null;
+          try {
+            const rd = await FS.readFile({ path: name, directory: 'CACHE' });
+            const b64 = (rd && (typeof rd.data === 'string')) ? rd.data : '';
+            realHash = b64 ? await sha256Hex(b64) : null;
+          } catch (_) { realHash = null; }
+          if (realHash && realHash !== String(info.sha256).toLowerCase()) {
+            lastErr = '校验失败：文件与官方发布不一致';
+            try { await FS.deleteFile({ path: name, directory: 'CACHE' }); } catch (_) { }
+            continue;
+          }
         }
       } catch (e) {
         lastErr = (e && e.message) ? String(e.message) : '下载失败';
@@ -3062,8 +3289,9 @@ function renderAbout() {
       '<b style="color:var(--text)">开发者：' + DEVELOPER + '</b><br>' +
       '© 2026 ' + DEVELOPER + '　保留所有权利。<br>' +
       '本软件为开源软件，允许自由使用、修改与分发，请保留本版权声明。<br>' +
-      '<b style="color:var(--text)">兼容性：</b>当前版本 v' + APP_VERSION + ' 仅适配「武汉铁路职业技术学院」教务系统导出的课程表；其他学校格式可能解析不全，可在导入时手动映射列。<br>' +
-      '联网说明：日常使用不联网，数据只保存在本机。仅当你主动点「检查更新」时，才会向 GitHub 查询本项目的版本信息。' +
+      '<b style="color:var(--text)">兼容性：</b>解析器可自动识别教务系统常见的几种课表格式（大节网格表、通用明细表、通用网格表），列名不标准时会引导你手动对应；安卓版另内置两百余所高校教务系统的直连导入适配（适配脚本取自开源社区，见下），列表外的学校也可自行选择系统类型与网址。<br>' +
+      '<b style="color:var(--text)">教务导入适配脚本：</b>多校导入使用的适配脚本取自开源项目「拾光课程表」的脚本仓库（MIT 许可，Copyright (c) 2025 星河欲转），按许可要求在此署名。<br>' +
+      '联网说明：日常使用不联网，数据只保存在本机。只有你主动点「检查更新」查询版本、或使用「从教务系统导入」连接学校教务系统时，应用才会联网，两者都不会上传你的数据。' +
     '</div>' +
     '<div class="lk" id="btnPrivacy">' +
       '<svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 4.3-2.9 7.8-7 9-4.1-1.2-7-4.7-7-9V6z"/><path d="M9.3 12.2l2 2 3.4-3.6"/></svg>' +
@@ -3078,22 +3306,23 @@ function renderPrivacy() {
   const el = $('#pvBody');
   if (!el) return;
   el.innerHTML =
-    '<p class="pv-p">本政策说明「清笺课程表」（以下简称「本应用」）如何处理你的信息。<b>本应用不收集、不上传任何个人信息，所有数据只保存在你自己的设备上。</b>除你主动点「检查更新」外，本应用不发起任何网络请求。</p>' +
+    '<p class="pv-p">本政策说明「清笺课程表」（以下简称「本应用」）如何处理你的信息。<b>本应用不收集、不上传任何个人信息，所有数据只保存在你自己的设备上。</b>除你主动点「检查更新」，或使用「从教务系统导入」连接学校教务系统外，本应用不发起任何网络请求。</p>' +
     '<div class="pv-h">一、我们收集哪些信息</div>' +
     '<p class="pv-p">不收集。本应用没有账号体系，不需要手机号、邮箱或任何实名信息，也没有埋点统计、广告或行为分析。检查更新时只读取本项目的公开版本信息，不发送任何与你有关的内容。</p>' +
     '<div class="pv-h">二、你的数据保存在哪里</div>' +
     '<p class="pv-p">全部保存在本机：课程表、个人资料、头像、背景图与主题设置只写入设备本地存储；安卓版会额外写入本应用的私有目录，用途仅是防止系统回收后数据丢失。这些内容不会离开你的设备。</p>' +
     '<div class="pv-h">三、用到的权限及用途</div>' +
-    '<p class="pv-p"><b>网络</b>：只有你主动点「检查更新」时，才会连接 GitHub 查询本项目的公开发布记录（当前版本号、最新版本号、下载地址），不会上传设备信息、账号或任何课程数据。除此之外应用不发起网络请求。<br>' +
+    '<p class="pv-p"><b>网络</b>：只有你主动点「检查更新」时，才会连接 GitHub 查询本项目的公开发布记录（当前版本号、最新版本号、下载地址），不会上传设备信息、账号或任何课程数据；只要你不主动点，应用不会因为这个功能联网。<br>' +
+    '<b>教务系统导入</b>：只有你主动点「从教务系统导入」时，应用才会用内置的浏览窗口打开你所选学校的教务系统网页，用于登录并读取课表。账号密码由你在教务系统页面自行输入，本应用<b>不读取、不保存、不上传</b>，读到的课表数据只留在本机。<br>' +
     '<b>相册 / 文件</b>：只有你主动点「从相册选择头像 / 背景图」「导入 Excel」「从备份恢复」时，才会读取你选中的那一个文件，不会扫描或上传其他文件。<br>' +
     '<b>安装未知应用</b>：仅用于在你点「下载并安装」后拉起系统安装器，安装的只能是本应用自身的新版本；本应用不读取、不修改任何已安装应用。<br>' +
     '<b>通知</b>：只有在你开启「上课提醒」后用于弹出本地提醒，可随时关闭。<br>' +
     '除此之外，本应用不申请定位、通讯录、短信、通话等任何权限。</p>' +
-    '<div class="pv-h">四、联网与检查更新</div>' +
-    '<p class="pv-p">本应用不联网也能完整使用。唯一会联网的功能是「设置 → 检查更新」，它在你点击时向 GitHub 发出一次只读请求，取回本项目的版本信息与安装包下载地址。请求中不包含你的身份、设备标识或课程数据；国内网络下会按顺序尝试若干个公共镜像站，这些镜像站同样只会收到这一个版本查询请求。</p>' +
+    '<div class="pv-h">四、联网说明</div>' +
+    '<p class="pv-p">本应用不联网也能完整使用，课程表的日常查看、编辑、导出全部在本机完成。会联网的功能只有两个：一是「设置 → 检查更新」，它在你点击时向 GitHub 发出一次只读请求，取回本项目的版本信息与安装包下载地址，请求中不包含你的身份、设备标识或课程数据（国内网络下会按顺序尝试若干个公共镜像站，这些镜像站同样只会收到这一个版本查询请求）；二是「从教务系统导入」（安卓版），它连接你所选学校的教务系统网页，仅用于登录与读取课表，账号密码由你自行输入、应用不接触，读到的课表只存在本机。</p>' +
     '<p class="pv-p">更新包下载完成后，是否安装完全由你决定。本应用不会在后台自动检查或自动安装更新。</p>' +
     '<div class="pv-h">五、第三方</div>' +
-    '<p class="pv-p">本应用不含任何第三方 SDK、统计工具或广告。除「检查更新」会访问 GitHub 及其公共镜像外，不与其他服务器通信。导出图片 / 日历 / 备份文件时会调起系统分享面板，是否发给其他应用完全由你决定。</p>' +
+    '<p class="pv-p">本应用不含任何第三方 SDK、统计工具或广告。除「检查更新」会访问 GitHub 及其公共镜像、「从教务系统导入」会访问你所选学校的教务系统外，不与其他服务器通信。导出图片 / 日历 / 备份文件时会调起系统分享面板，是否发给其他应用完全由你决定。</p>' +
     '<div class="pv-h">六、数据的删除</div>' +
     '<p class="pv-p">你可以随时在应用内用「清空当前课程表」「移除头像」「恢复默认背景」删除对应内容；卸载本应用会一并清除本机保存的全部数据。</p>' +
     '<div class="pv-h">七、未成年人</div>' +
@@ -3102,15 +3331,14 @@ function renderPrivacy() {
     '<p class="pv-p">本政策如有变更，会随新版本一同更新，并在「设置 → 关于 → 隐私政策」中展示。</p>' +
     '<div class="pv-h">九、联系我们</div>' +
     '<p class="pv-p">本应用为开源软件，如有疑问或建议，欢迎通过项目开源仓库的 Issue 反馈。</p>' +
-    '<div class="pv-note">最后更新：2026 年 10 月 6 日　·　适用于清笺课程表 v' + APP_VERSION + '</div>';
+    '<div class="pv-note">最后更新：2026 年 10 月 13 日　·　适用于清笺课程表 v' + APP_VERSION + '</div>';
 }
 
 /* ---------------- 个人资料 ---------------- */
 function openProfile() {
   const pf = S.profile;
-  const uname = pf.nickname || S.settings.student || '同学';
   const box = $('#pfAv');
-  box.innerHTML = pf.avatar ? '<img src="' + esc(pf.avatar) + '" alt="">' : esc(String(uname).trim().slice(0, 1) || '清');
+  box.innerHTML = pf.avatar ? '<img src="' + esc(pf.avatar) + '" alt="">' : '';
   $('#pfName').value = pf.nickname || '';
   $('#pfSign').value = pf.signature || '';
   $('#pfBirth').value = pf.birthday || '';
@@ -3120,8 +3348,7 @@ function openProfile() {
 $('#pfCancel').onclick = hideSheet;
 $('#pfAvClear').onclick = () => {
   S.profile.avatar = '';
-  const uname = S.profile.nickname || S.settings.student || '同学';
-  $('#pfAv').innerHTML = esc(String(uname).trim().slice(0, 1) || '清');
+  $('#pfAv').innerHTML = '';
   save(); renderMe();          // 与「恢复默认背景」一致：移除类操作立即落盘
   toast('已移除头像');
 };
@@ -3366,9 +3593,12 @@ function openEdit(id, preset) {
     $$('#fDay .chip').forEach(x => x.classList.remove('on'));
     el.classList.add('on'); updateTimeHint();
   });
+  // 下拉要能覆盖到本课实际的起止节次，否则 base.s/base.e 超出列表时 select 会显示空、
+  // 保存时被当成 0 把节次改坏
   const maxP = Math.max.apply(null, (S.settings.periods || []).map(p => p.n).concat([10]));
+  const needMax = Math.max(maxP, Math.max(1, Math.round(+base.s) || 1), Math.max(1, Math.round(+base.e) || 1));
   let o = '';
-  for (let i = 1; i <= maxP; i++) o += '<option value="' + i + '">第 ' + i + ' 节</option>';
+  for (let i = 1; i <= needMax; i++) o += '<option value="' + i + '">第 ' + i + ' 节</option>';
   $('#fS').innerHTML = o; $('#fE').innerHTML = o;
   $('#fS').value = base.s; $('#fE').value = base.e;
   $('#fS').onchange = updateTimeHint; $('#fE').onchange = updateTimeHint;
@@ -3389,7 +3619,12 @@ function updateTimeHint() {
 function saveEdit() {
   const name = $('#fName').value.trim();
   if (!name) { toast('请填写课程名称'); return; }
-  let s = +$('#fS').value, e = +$('#fE').value;
+  // 节次钳到合法范围：下限 1，上限取「节次表最大」与「下拉覆盖到的最大节次」的较大者
+  // （下拉会扩到覆盖已有越界课，编辑时不能把它又钳回去），空/非法输入回退 1
+  const maxN = Math.max.apply(null, (S.settings.periods || []).map(p => p.n).concat([1]));
+  const capN = Math.max(maxN, $('#fS').options.length, $('#fE').options.length);
+  let s = Math.max(1, Math.min(capN, Math.round(+$('#fS').value) || 1));
+  let e = Math.max(1, Math.min(capN, Math.round(+$('#fE').value) || 1));
   if (s > e) { const t = s; s = e; e = t; }
   const dayEl = $('#fDay .chip.on');
   const day = dayEl ? +dayEl.dataset.d : 1;
@@ -3441,6 +3676,18 @@ $('#stCancel').onclick = hideSheet;
 $('#pvCancel').onclick = hideSheet;
 /* 设置：一级列表 → 二级弹层；二级弹层的返回按钮回到它自己声明的上级 */
 $$('#sheetSettings .setlist .navrow').forEach(r => r.onclick = () => showSheet(r.dataset.go));
+/* 一键导入日历：先弹窗选提醒，确认后再写系统日历 / 取消导入 */
+$('#ciCancel').onclick = hideSheet;
+$('#btnDoCalImport').onclick = async () => {
+  const rm = +($('#ciRemind').value || 0);
+  await syncCoursesToCal(rm);
+  renderCalImportSheet();
+};
+$('#btnClearCoursesCal').onclick = () => {
+  if (!activeTable().calSync) { toast('当前还没有导入系统日历'); return; }
+  if (!confirm('取消后，系统日历里已同步的课程会被删除。确定？')) return;
+  clearCoursesFromCal();
+};
 $$('.sh-head .ibtn[data-back]').forEach(b => b.onclick = () => showSheet(b.dataset.back));
 $$('.sheet .sh-head .ibtn.catCancel').forEach(b => b.onclick = hideSheet);
 /* 每个弹层的上级（由返回按钮的 data-back 推导），安卓返回键据此逐层退回 */
@@ -3502,7 +3749,7 @@ $$('.tab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 $('#btnAdd').onclick = () => openEdit(null);
 $('#btnImport').onclick = openImport;
 $('#btnImport2').onclick = openImport;
-if ($('#btnImportZw')) $('#btnImportZw').onclick = importFromZw;
+if ($('#btnImportZw')) $('#btnImportZw').onclick = openUniImport;   // 统一入口：进来先选学校
 $('#btnExport').onclick = () => { renderMore(); showSheet('#sheetMore'); };
 $('#btnMore').onclick = () => { renderMore(); showSheet('#sheetMore'); };
 
@@ -3521,6 +3768,7 @@ function renderMore() {
     S.view.week = n; hideSheet(); renderAll();
   };
   $('#smPng').onclick = () => { hideSheet(); setTimeout(exportPNG, 300); };
+  $('#smCalImport').onclick = () => { renderCalImportSheet(); showSheet('#sheetCalImport'); };
 }
 
 $('#fileXlsx').onchange = function () {
@@ -3533,17 +3781,16 @@ $('#fileJson').onchange = function () {
     try {
       const d = JSON.parse(e.target.result);
       if (d.tables && d.tables.length) {
-        // 完整备份：整体恢复
+        // 完整备份：整体恢复（逐项清洗，防损坏/被改备份污染状态）
         if (!confirm('这会用备份覆盖本机现有的全部课程表与资料，继续吗？')) return;
-        S.tables = d.tables;
-        S.activeId = d.activeId || d.tables[0].id;
-        S.profile = Object.assign({ nickname: '', avatar: '', signature: '', birthday: '' }, d.profile || {});
-        S.global = Object.assign(S.global, d.global || {});
-        S.tables.forEach(t => {
-          t.courses = t.courses || []; t.notes = t.notes || [];
-          t.settings = Object.assign(blankSettings(), t.settings || {});
-          if (!t.settings.periods || !t.settings.periods.length) t.settings.periods = JSON.parse(JSON.stringify(DEFAULT_PERIODS));
-        });
+        const tables = d.tables.map(sanitizeTable).filter(Boolean);
+        if (!tables.length) throw new Error('备份里的课程表数据不合法');
+        S.tables = tables;
+        S.activeId = (typeof d.activeId === 'string' && tables.some(x => x.id === d.activeId))
+          ? d.activeId : tables[0].id;
+        S.profile = Object.assign({ nickname: '', avatar: '', signature: '', birthday: '' },
+          (d.profile && typeof d.profile === 'object') ? d.profile : {});
+        S.global = Object.assign(S.global, (d.global && typeof d.global === 'object') ? d.global : {});
         activeTable(); applyTheme();
         S.view.week = Math.max(1, nowWeek());
         save(); renderAll();
@@ -3551,8 +3798,10 @@ $('#fileJson').onchange = function () {
       } else if (d.courses) {
         // 旧版单课表备份：导入到当前课程表
         const t = activeTable();
-        t.courses = d.courses; t.notes = d.notes || [];
-        t.settings = Object.assign(blankSettings(), t.settings, d.settings || {});
+        const tmp = sanitizeTable({ id: t.id, name: t.name, courses: d.courses, notes: d.notes, settings: d.settings });
+        if (!tmp) throw new Error('备份数据不合法');
+        t.courses = tmp.courses; t.notes = tmp.notes;
+        t.settings = tmp.settings;
         assignColors(); save(); renderAll();
         toast('恢复成功：' + t.courses.length + ' 条课程');
       } else {
@@ -3635,16 +3884,6 @@ $('#btnThemeReset').onclick = () => {
   save(); applyTheme(); renderMe();
   toast('已恢复默认主题：青绿山水');
 };
-$('#setRemind').onchange = function () {
-  S.global.remind = +this.value;
-  if (S.global.remind > 0 && 'Notification' in window) {
-    Notification.requestPermission().then(p => {
-      if (p !== 'granted') toast('浏览器未授权通知，提醒可能不生效', 3000);
-      else toast('已开启：上课前 ' + S.global.remind + ' 分钟提醒');
-    });
-  }
-  save();
-};
 $('#btnResetPeriods').onclick = () => {
   S.settings.periods = JSON.parse(JSON.stringify(DEFAULT_PERIODS));
   save(); renderAll(); toast('已恢复默认节次时间');
@@ -3719,25 +3958,15 @@ function importFromZw() {
     toast('这个方式需要在安卓 App 里使用。网页版受浏览器跨域限制，无法直接读取教务系统，请用「选择文件」导入。', 5200);
     return;
   }
-  showZwModal();
+  zwOpen();
 }
 
-/* 跳转前的简短提醒弹窗：点「我知道了」才真正打开教务系统 */
-function showZwModal() {
-  const m = $('#zwModal');
-  if (!m) { zwOpen(); return; }
-  m.classList.add('on');
-  $('#zwGo').onclick = () => { m.classList.remove('on'); zwOpen(); };
-  $('#zwCancel').onclick = () => m.classList.remove('on');
-  $('#zwMask').onclick = () => m.classList.remove('on');
-}
-
-/* 真正打开教务系统并抓取课表 */
+/* 打开教务系统并抓取课表 */
 function zwOpen() {
   const P = zwPlugin();
   if (!P) return;
   IMP = { kind: 'zwgrid', awaitZw: true };
-  toast('请在弹出的窗口里登录教务系统，登录后到「学期理论课表」点「打印」', 5000);
+  toast('请在弹出的窗口里登录教务系统，登录成功后会自动读取课表', 5000);
   P.openAndGrab({ url: ZW_ENTRY, apiPath: ZW_KB_API })
     .then(res => {
       const html = res && res.html;
@@ -3750,6 +3979,318 @@ function zwOpen() {
       if (!/取消|已取消|cancel/i.test(m)) toast('读取课表失败：' + m, 3600);
     })
     .finally(() => { if (IMP && IMP.awaitZw) IMP = null; });
+}
+
+/* ================================================================
+   从教务系统导入（学校可选）
+
+   一个入口，两条内部链路，用户只看到「选学校」：
+   ① 内置学校（武汉铁路职业技术学院）：走早已验证的 ZwBridge ——
+      原生侧在同一个 WebView 里带登录态 fetch 课表接口，回传 HTML 后
+      用 parseZwGrid() 解析。这条不依赖脚本，最稳。
+   ② 其他学校：走 UniImportPlugin + 适配脚本 ——
+      脚本来自拾光课程表开源社区，跑在 App 弹出的 WebView 里；App 只提供
+      window.shiguangBridgePromise / shiguangBridge 两个桥对象，解析逻辑全在脚本内，
+      所以新增一所学校只需换脚本，不必改应用。
+
+   链路②：选系统类型 → 填教务网址 → 原生插件开 WebView → 用户登录 →
+          打开课表页 → 点「执行导入」→ 插件注入桥与脚本 →
+          脚本回传课程 / 开学日期 / 节次时间 → 走统一的「确认导入」面板。
+   ================================================================ */
+/* 本校（武汉铁路职业技术学院）：与拾光清单里的学校一并平铺在列表中，不置顶、不额外标注；
+   点它走早已验证的 ZwBridge 通道（登录 → 落在 /jsxsd/ → 自动抓 xskb_list.do → parseZwGrid），
+   不依赖适配脚本。 */
+const UNI_HOME = {
+  id: 'wru', name: '武汉铁路职业技术学院', sub: '武汉铁路职业技术学院教务系统',
+  initial: 'W', cat: 'BACHELOR_AND_ASSOCIATE'
+};
+/* 教务系统类别标签（取自拾光适配器的 category 字段） */
+const CAT_LABEL = {
+  BACHELOR_AND_ASSOCIATE: '本科 / 高职',
+  POSTGRADUATE: '研究生',
+  GENERAL_TOOL: '通用工具'
+};
+const catLabel = c => CAT_LABEL[c] || '';
+/* 其余学校随 APK 打包在 assets 里（脚本与网址来自拾光课程表开源社区），网页读不到 assets，
+   由插件的 listSchools() 取回。 */
+let UNI_SCHOOLS = [];
+const UNI_ADAPTERS = [
+  { id: 'zhengfang', name: '正方教务系统', desc: '覆盖使用正方教务系统的高校',
+    hint: '登录后进入「学生课表查询」，选好学年学期并点击【查询】，确认课表已在页面上显示，再点「执行导入」。' },
+  { id: 'chaoxing', name: '超星教务系统', desc: '覆盖使用超星教务系统的高校，会自动读取作息时间与开学日期',
+    hint: '登录后打开课表页面（页面上有学年学期下拉框的那个页面），再点「执行导入」。' },
+  { id: 'qingguo', name: '青果教务系统', desc: '覆盖使用青果教务系统的高校',
+    hint: '登录后打开课表页面，再点「执行导入」。' },
+  { id: 'urp', name: 'URP 综合教务系统', desc: '覆盖使用 URP 综合教务系统的高校，会同时读取节次时间',
+    hint: '登录后打开课表视图页面，再点「执行导入」。' }
+];
+let UNI_PICK = 'zhengfang';   // 当前选中的系统类型（仅「其他学校」时用）
+let UNI_SCHOOL = '';          // '' = 未选择；'wru' = 本校；'other' = 其他学校；其余 = 学校清单里的 adapter_id
+let UNI_Q = '';               // 学校搜索词
+let UNI_CAT = 'BACHELOR_AND_ASSOCIATE';   // 当前页签：本科 / 高职 · 研究生 · 通用系统
+
+/* 取内置学校清单；失败时退化成只留本校与「其他学校」，不影响导入 */
+function uniLoadSchools() {
+  if (UNI_SCHOOLS.length) return Promise.resolve(UNI_SCHOOLS);
+  const P = uniPlugin();
+  if (!P || !P.listSchools) return Promise.resolve(UNI_SCHOOLS);
+  return P.listSchools().then(r => {
+    UNI_SCHOOLS = (r && r.schools) || [];
+    return UNI_SCHOOLS;
+  }).catch(() => UNI_SCHOOLS);
+}
+
+function uniPlugin() {
+  const C = window.Capacitor;
+  return (C && C.Plugins && C.Plugins.UniImport) || null;
+}
+
+/* 清单 + 本校：把本校按首字母插进正常位置（与拾光清单同样的排序规则），
+   前端看到的就只是一份普通学校列表 */
+function uniAll() {
+  const arr = UNI_SCHOOLS.slice();
+  const key = UNI_HOME.initial, nm = UNI_HOME.name;
+  let at = arr.length;
+  for (let i = 0; i < arr.length; i++) {
+    const it = arr[i].initial || '#';
+    if (it > key || (it === key && (arr[i].name || '') > nm)) { at = i; break; }
+  }
+  arr.splice(at, 0, UNI_HOME);
+  return arr;
+}
+
+/* 打开「从教务系统导入」面板：先选学校，其他学校再选类型 + 填网址 */
+function openUniImport() {
+  if (!isNative() || (!uniPlugin() && !zwPlugin())) {
+    toast('这个方式需要在安卓 App 里使用。', 3600);
+    return;
+  }
+  $('#uniTitle').textContent = '从教务系统导入';
+  const last = localStorage.getItem('qj_uni_url') || '';
+  const optHtml = (list, pick) =>
+    list.map(a =>
+      '<div class="opt' + (a.id === pick ? ' on' : '') + '" data-id="' + a.id + '">' +
+        '<div class="rd"></div><div class="ot"><b>' + esc(a.name) + '</b><small>' + esc(a.desc) + '</small></div>' +
+      '</div>').join('');
+  /* act = true 的行：点一下就进教务系统，所以右侧给箭头而不是单选圈，
+     用户不用再往下翻去找「打开教务系统」按钮 */
+  const item = (id, name, sub, on, act, cat) =>
+    '<div class="opt' + (on ? ' on' : '') + '" data-id="' + esc(id) + '">' +
+      (act ? '' : '<div class="rd"></div>') +
+      '<div class="ot"><b>' + esc(name) + '</b>' +
+      ((sub || cat) ? '<small>' + (cat ? '<span class="ucat">' + esc(cat) + '</span>' : '') + esc(sub) + '</small>' : '') +
+      '</div>' +
+      (act ? '<div class="go"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></div>' : '') +
+    '</div>';
+
+  $('#uniBody').innerHTML =
+    '<div class="muted" style="padding:6px 0 10px">在应用内打开教务系统，登录后按提示操作即可读取课表。<br>账号密码只在教务系统页面里输入，本应用不保存、不接触。</div>' +
+    '<input class="finput" id="uniQ" type="search" autocomplete="off" spellcheck="false" ' +
+      'placeholder="搜索学校名称" value="' + esc(UNI_Q) + '">' +
+    '<div class="hint" style="margin-top:8px">点一下学校名就会打开该校教务系统。列表里没有的学校，选最下面的「其他学校」。</div>' +
+    '<div class="seg" id="uniTabs" style="margin-top:10px">' +
+      '<button type="button" class="sg' + (UNI_CAT === 'BACHELOR_AND_ASSOCIATE' ? ' on' : '') + '" data-cat="BACHELOR_AND_ASSOCIATE">本科 / 高职</button>' +
+      '<button type="button" class="sg' + (UNI_CAT === 'POSTGRADUATE' ? ' on' : '') + '" data-cat="POSTGRADUATE">研究生</button>' +
+      '<button type="button" class="sg' + (UNI_CAT === 'GENERAL_TOOL' ? ' on' : '') + '" data-cat="GENERAL_TOOL">通用系统</button>' +
+    '</div>' +
+    '<div class="unilist" id="uniSchools" style="margin-top:10px">' +
+      '<div class="muted" style="padding:14px 0;text-align:center">正在读取学校清单…</div>' +
+    '</div>' +
+    '<div id="uniOther"' + (UNI_SCHOOL === 'other' ? '' : ' style="display:none"') + '>' +
+      '<div class="fgroup" style="margin-top:14px"><div class="flabel">教务系统类型</div><div id="uniTypes">' +
+        optHtml(UNI_ADAPTERS, UNI_PICK) +
+      '</div></div>' +
+      '<div class="fgroup" style="margin-top:14px"><div class="flabel">教务系统网址</div>' +
+        '<input class="finput" id="uniUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false" ' +
+          'placeholder="例如 http://jwxt.xxx.edu.cn" value="' + esc(last) + '">' +
+        '<div class="hint">填写贵校教务系统的登录地址，建议直接复制浏览器地址栏里的网址。</div>' +
+      '</div>' +
+      '<div class="hint" id="uniHint" style="margin-top:12px;padding:10px;background:#F3F7F6;border-radius:8px"></div>' +
+      '<button class="btn" id="uniGo" style="margin-top:16px">打开教务系统</button>' +
+    '</div>' +
+    '<button class="btn sec" id="uniBack" style="margin-top:12px">返回</button>';
+
+  /* 渲染学校列表：本校与清单学校一并按首字母分组，「其他学校」在最后 */
+  const renderSchools = () => {
+    const q = UNI_Q.trim().toLowerCase();
+    const hit = s =>
+      (s.name || '').toLowerCase().indexOf(q) >= 0 ||
+      (s.sub || '').toLowerCase().indexOf(q) >= 0 ||
+      (s.id || '').toLowerCase().indexOf(q) >= 0;
+    const all = uniAll();
+    // 有搜索词时跨类别检索 —— 免得「明明有这所学校，却因为不在当前页签里搜不到」
+    const pool = q ? all : all.filter(s => (s.cat || 'BACHELOR_AND_ASSOCIATE') === UNI_CAT);
+    const list = q ? pool.filter(hit) : pool;
+    let html = '';
+    if (q && all.length && !list.length) {
+      html += '<div class="muted" style="padding:12px 0;text-align:center">没有匹配的学校，可改用下方「其他学校」。</div>';
+    } else if (!q && !list.length) {
+      html += '<div class="muted" style="padding:12px 0;text-align:center">这个类别下暂时没有学校，可切换上面的页签，或改用下方「其他学校」。</div>';
+    }
+    let cur = '';
+    list.forEach(s => {
+      if (!q && s.initial && s.initial !== cur) {
+        cur = s.initial;
+        html += '<div class="flabel" style="margin:10px 0 4px">' + esc(cur) + '</div>';
+      }
+      html += item(s.id, s.name, s.sub || '', UNI_SCHOOL === s.id, true, catLabel(s.cat));
+    });
+    html += item('other', '其他学校', '选择教务系统类型并填写贵校教务网址', UNI_SCHOOL === 'other');
+    const box = $('#uniSchools');
+    if (!box) return;
+    box.innerHTML = html;
+    $$('#uniSchools .opt').forEach(el => { el.onclick = () => tapSchool(el.dataset.id); });
+  };
+
+  /* 点学校即走，省掉「翻到底再点按钮」：
+       本校      → 跳转前提醒 → ZwBridge（已验证的武铁通道）
+       清单学校  → 直接用该校自带的教务网址开 WebView
+     「其他学校」还要选类型、填网址，所以只展开表单，等用户点「打开教务系统」。 */
+  const tapSchool = id => {
+    UNI_SCHOOL = id;
+    $$('#uniSchools .opt').forEach(x => x.classList.toggle('on', x.dataset.id === id));
+    if (id === 'other') {
+      const w = $('#uniOther');
+      if (w) {
+        w.style.display = '';
+        setTimeout(() => { try { w.scrollIntoView({ block: 'nearest' }); } catch (e) {} }, 30);
+      }
+      refreshHint();
+      return;
+    }
+    uniOpen();
+  };
+
+  /* 提示只服务「其他学校」表单：清单里的学校点开就走，说明由弹窗与 toast 交代 */
+  const refreshHint = () => {
+    const h = $('#uniHint');
+    if (!h) return;
+    const a = UNI_ADAPTERS.find(x => x.id === UNI_PICK);
+    h.innerHTML = a ? '<b>导入前需要：</b>' + esc(a.hint) : '';
+  };
+
+  /* 类别页签：本科 / 高职 · 研究生 · 通用系统 */
+  $$('#uniTabs .sg').forEach(b => {
+    b.onclick = () => {
+      UNI_CAT = b.dataset.cat;
+      $$('#uniTabs .sg').forEach(x => x.classList.toggle('on', x === b));
+      renderSchools();
+    };
+  });
+
+  /* 搜索框：只绑 input 是不够的。安卓 WebView 里中文输入法的候选词是在
+     compositionend 那一刻才写进 value 的，而它经常不补发 input 事件；用回车选词
+     也会被输入法自己吃掉。结果就是「字打完了列表不动，删掉一个字才刷新」。
+     所以 input / compositionend / change / search / 回车 全部接上，
+     统一读输入框的现值，不依赖事件自带的 payload。 */
+  const uniQ = $('#uniQ');
+  if (uniQ) {
+    const syncUniQuery = () => {
+      const v = uniQ.value;
+      if (v === UNI_Q) return;
+      UNI_Q = v;
+      renderSchools();
+    };
+    ['input', 'compositionend', 'change', 'search'].forEach(ev =>
+      uniQ.addEventListener(ev, syncUniQuery));
+    // e.isComposing 时回车是「选词」，必须让给输入法，不能拦
+    uniQ.addEventListener('keydown', e => {
+      if ((e.key === 'Enter' || e.keyCode === 13) && !e.isComposing) syncUniQuery();
+    });
+    // 个别 WebView 要等 compositionend 之后一个 tick 才把 value 写进去，补一次
+    uniQ.addEventListener('compositionend', () => setTimeout(syncUniQuery, 0));
+  }
+  $$('#uniTypes .opt').forEach(el => {
+    el.onclick = () => {
+      UNI_PICK = el.dataset.id;
+      $$('#uniTypes .opt').forEach(x => x.classList.toggle('on', x === el));
+      refreshHint();
+    };
+  });
+  renderSchools();
+  refreshHint();
+  uniLoadSchools().then(() => renderSchools());
+  $('#uniGo').onclick = uniOpen;
+  $('#uniBack').onclick = () => showSheet('#sheetImport');
+  showSheet('#sheetUni');
+}
+
+/* 真正打开教务系统 WebView 并执行导入 */
+function uniOpen() {
+  // 本校走早已验证的 ZwBridge 通道（登录后自动抓 xskb_list.do → parseZwGrid）
+  if (UNI_SCHOOL === UNI_HOME.id) { importFromZw(); return; }
+  const P = uniPlugin();
+  if (!P) return;
+  let url, scriptId;
+  if (UNI_SCHOOL === 'other') {
+    url = ($('#uniUrl').value || '').trim();
+    if (!url) { toast('请先填写教务系统网址'); return; }
+    scriptId = UNI_PICK;
+  } else {
+    const s = UNI_SCHOOLS.find(x => x.id === UNI_SCHOOL);
+    url = (s && s.url) || '';
+    if (!url) { toast('这所学校没有配置教务网址，请改用「其他学校」手动填写'); return; }
+    scriptId = UNI_SCHOOL;
+  }
+  // 归一化教务网址：默认 HTTPS 优先（http 登录页账号可被窃听）；
+  // 明确的非 http(s) 协议（javascript:/data: 等）直接拒绝，防注入。
+  url = String(url).trim();
+  if (/^(javascript|data|vbscript|file):/i.test(url)) { toast('网址格式不对，请填写 http(s) 开头的教务系统地址'); return; }
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  localStorage.setItem('qj_uni_url', url);
+
+  IMP = { kind: 'uni', awaitUni: true };
+  // 这里不关闭学校列表面板：教务系统窗口被取消时（按返回键、点「关闭」），
+  // 面板还在下面，用户可以直接换一所学校。导入成功后 uniApply() 会打开确认面板，
+  // showSheet() 自会把这个面板收掉，不会残留在上面。
+  toast('请在弹出的窗口里登录，然后打开课表页，点「执行导入」', 5200);
+  P.open({ url: url, scriptId: scriptId })
+    .then(res => uniApply(res))
+    .catch(e => {
+      const m = (e && (e.message || e.errorMessage)) || '';
+      if (!/取消|已取消|cancel/i.test(m)) toast('导入未完成：' + m, 4000);
+    })
+    .finally(() => { if (IMP && IMP.awaitUni) IMP = null; });
+}
+
+/* 把脚本回传的数据转成课表结构，送进统一的「确认导入」面板 */
+function uniApply(res) {
+  const list = (res && res.courses) || [];
+  if (!list.length) { toast('脚本没有返回课程数据'); return; }
+  const courses = list.map(c => {
+    const room = (c.position || '').trim();
+    const w = (c.weeks && c.weeks.length) ? c.weeks.map(x => +x).filter(x => x >= 1 && x <= 200) : null;
+    return {
+      id: uid(), name: (c.name || '').trim(), teacher: (c.teacher || '').trim(), room: room,
+      day: Math.max(1, Math.min(7, +c.day || 1)),
+      s: Math.max(1, +c.startSection || 1), e: Math.max(1, +c.endSection || 1),
+      weeks: (w && w.length) ? w : [1],
+      color: '', note: '', roomShort: shortRoom(room)
+    };
+  });
+
+  // 脚本给了节次时间就按它排作息，否则沿用当前课表的设置
+  let periods = [];
+  if (res.timeSlots && res.timeSlots.length) {
+    periods = res.timeSlots
+      .filter(s => s.startTime && s.endTime && Number.isFinite(+s.number))
+      .map(s => ({ n: +s.number, start: String(s.startTime).slice(0, 5), end: String(s.endTime).slice(0, 5) }))
+      .sort((a, b) => a.n - b.n);
+  }
+
+  // 脚本给了开学日期就直接采用，不必再问「本周是第几周」
+  const fixedStart = (res.config && res.config.semesterStartDate) || '';
+
+  IMP = {
+    kind: 'uni',
+    awaitUni: false,
+    fixedStart: fixedStart,
+    result: { courses: courses, notes: [], meta: { semester: '', student: '', className: '' }, periods: periods, kind: 'grid' },
+    fname: (res.adapterName || '教务系统')
+  };
+  showImportConfirm();
+  if (periods.length) toast('已按教务系统的节次时间设置作息', 3000);
+  if (fixedStart) toast('开学日期：' + fixedStart, 3000);
 }
 
 /* ================================================================
@@ -3886,32 +4427,6 @@ function wrapCount(g, text, maxW) {
   let n = 1, w = 0;
   for (const ch of String(text)) { const cw = g.measureText(ch).width; if (w + cw > maxW) { n++; w = cw; } else w += cw; }
   return n;
-}
-
-/* ================================================================
-   提醒
-   ================================================================ */
-setInterval(checkRemind, 60000);
-let reminded = {};
-function checkRemind() {
-  const r = S.global.remind;
-  if (!r || !('Notification' in window) || Notification.permission !== 'granted') return;
-  const now = new Date(), wk = nowWeek();
-  const wd = now.getDay() === 0 ? 7 : now.getDay();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  // reminded 只用于当天去重，顺手清掉不是今天的，免得长期运行越攒越多
-  const today = ymd(now);
-  Object.keys(reminded).forEach(k => { if (k.indexOf(today) !== 0) delete reminded[k]; });
-  S.courses.filter(c => c.day === wd && isActive(c, wk)).forEach(c => {
-    const p = (S.settings.periods || []).find(x => x.n === c.s); if (!p || !p.start) return;
-    const tm = toMin(p.start); if (tm == null) return;
-    const diff = tm - nowMin;
-    const key = ymd(now) + '_' + c.id;
-    if (diff <= r && diff > 0 && !reminded[key]) {
-      reminded[key] = 1;
-      try { new Notification('即将上课：' + c.name, { body: p.start + ' 开始　' + (c.room || '') + (c.teacher ? '　' + c.teacher : ''), tag: key }); } catch (e) {}
-    }
-  });
 }
 
 /* ================================================================

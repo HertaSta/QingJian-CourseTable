@@ -19,6 +19,8 @@ sha 与本地不同 —— **但 tree 内容完全一致**（脚本末尾会校�
 ----
     GH_TOK=<token> python dev/gh-push-api.py [tag]
     # 例：GH_TOK=ghp_xxx python dev/gh-push-api.py v0.1.7
+    # 推到私人测试仓库：加 GH_REPO=HertaSta/QingJian-CourseTable-Test
+    # （同一个仓库的增量起点按仓库名分开存，两个仓库互不干扰）
 """
 import base64
 import json
@@ -28,12 +30,12 @@ import sys
 import urllib.error
 import urllib.request
 
-REPO = "HertaSta/QingJian-CourseTable"
+REPO = os.environ.get("GH_REPO", "HertaSta/QingJian-CourseTable").strip()
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOKEN = os.environ.get("GH_TOK", "").strip()
 API = "https://api.github.com"
 BRANCH = "main"
-SYNC = os.path.join(ROOT, ".git", "qj-api-sync.json")
+SYNC = os.path.join(ROOT, ".git", "qj-api-sync-%s.json" % REPO.replace("/", "_"))
 
 if not TOKEN:
     raise SystemExit("请通过环境变量 GH_TOK 提供令牌")
@@ -198,7 +200,7 @@ def main():
         json.dump({"remote_head": base_commit, "remote_tree": base_tree,
                    "local_base": git("rev-parse", "HEAD").strip(),
                    "tag": tag or ""}, f, ensure_ascii=False, indent=2)
-    print("同步记录已更新：.git/qj-api-sync.json")
+    print("同步记录已更新：" + os.path.basename(SYNC))
     print("DONE")
 
 

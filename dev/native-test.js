@@ -400,39 +400,29 @@ window.Capacitor = {
     const hasEntry = await evaluate("!!document.querySelector('#btnImportZw')");
     const entryVisible = await evaluate(
       "!!document.querySelector('#btnImportZw') && getComputedStyle(document.querySelector('#btnImportZw')).display !== 'none'");
-    check('设置页有「从教务系统直接导入」入口', hasEntry === true);
+    check('设置页有「从教务系统导入」入口', hasEntry === true);
     check('原生环境下入口可见', entryVisible === true);
     const nativeOnlyHiddenOnWeb = await evaluate(
       "document.documentElement.classList.contains('native-app')");
     check('原生环境已标记 native-app', nativeOnlyHiddenOnWeb === true);
 
-    // ② 点入口 → 先弹「跳转前提醒」，确认后才调到 ZwBridge
+    // ② 点入口 → 打开「选学校」面板；点本校直接进教务系统（跳转前提醒已去掉）
     await evaluate("window.__zwHtml = " + JSON.stringify(zwHtml) + "; 1");
     await evaluate("window.__zwReject = null; __calls.length=0; 1");
     await evaluate("document.querySelector('#btnImportZw').click(); 1");
     await sleep(300);
-    const modalOn = await evaluate(
-      "!!document.querySelector('#zwModal') && document.querySelector('#zwModal').classList.contains('on')");
-    check('点入口先弹出跳转提醒', modalOn === true);
+    const panelOn = await evaluate(
+      "!!document.querySelector('#uniSchools') && document.querySelector('#sheetUni').classList.contains('on')");
+    check('点入口打开「选学校」面板', panelOn === true);
     const zwCall0 = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='ZwBridge.openAndGrab';}))") || '[]');
-    check('仅弹提醒时不打开教务系统', zwCall0.length === 0, String(zwCall0.length));
-    const tipTxt = await evaluate(
-      "document.querySelector('#zwModal .box') ? document.querySelector('#zwModal .box').textContent : ''");
-    check('提醒里写明了要点「打印」', /打印/.test(tipTxt));
-    // 取消 → 不跳转、弹窗关闭
-    await evaluate("document.querySelector('#zwCancel').click(); 1");
-    await sleep(200);
-    const modalOff = await evaluate("document.querySelector('#zwModal').classList.contains('on')");
-    const zwCallX = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='ZwBridge.openAndGrab';}))") || '[]');
-    check('取消后关闭提醒且不跳转', modalOff === false && zwCallX.length === 0);
+    check('仅打开面板时不打开教务系统', zwCall0.length === 0, String(zwCall0.length));
+    check('跳转前提醒弹层已移除', await evaluate("!document.querySelector('#zwModal')") === true);
 
-    // 再点一次 → 确认跳转
-    await evaluate("document.querySelector('#btnImportZw').click(); 1");
-    await sleep(250);
-    await evaluate("document.querySelector('#zwGo').click(); 1");
+    // 点本校 → 立刻打开教务系统，不用再先点一次「我知道了」
+    await evaluate("UNI_SCHOOL='wru'; uniOpen(); 1");
     await sleep(700);
     const zwCall = JSON.parse(await evaluate("JSON.stringify(__calls.filter(function(c){return c[0]==='ZwBridge.openAndGrab';}))") || '[]');
-    check('调用原生插件打开教务系统', zwCall.length === 1, zwCall.length ? zwCall[0][1] : '');
+    check('点本校直接打开教务系统', zwCall.length === 1, zwCall.length ? zwCall[0][1] : '');
     check('传入的是课表接口路径', zwCall.length === 1 && /xskb_list\.do/.test(zwCall[0][2]), zwCall.length ? zwCall[0][2] : '');
     const nCourse = await evaluate("IMP && IMP.result ? IMP.result.courses.length : -1");
     check('解析出全部课程（含一格两门）', nCourse === 16, String(nCourse));
@@ -462,9 +452,8 @@ window.Capacitor = {
     await evaluate("window.__zwReject = '已取消'; __calls.length=0; 1");
     await evaluate("document.querySelector('#btnImport2') && document.querySelector('#btnImport2').click(); 1");
     await sleep(300);
-    await evaluate("window.__zwHtml=''; document.querySelector('#siZw') && document.querySelector('#siZw').click(); 1");
-    await sleep(250);
-    await evaluate("document.querySelector('#zwGo') && document.querySelector('#zwGo').click(); 1");
+    // 教务系统导入已合并成单一入口：进来先选学校。这里显式选中内置的本校，它会走 ZwBridge 通道
+    await evaluate("window.__zwHtml=''; document.querySelector('#siUni') && document.querySelector('#siUni').click(); UNI_SCHOOL='wru'; uniOpen(); 1");
     await sleep(600);
     check('取消后不残留导入会话', await evaluate('IMP === null || IMP.awaitZw !== true') === true);
     await evaluate("window.__zwReject = null; hideSheet(); switchTab('sched'); 1");
@@ -475,6 +464,17 @@ window.Capacitor = {
   const d1 = await evaluate('ymd(baseDate())');
   check('原生环境下同步开关可用', await evaluate('calReady()') === true);
   check('同步开关的说明是「写进系统日历」', String(await evaluate("document.querySelector('#evSyncHint').textContent")).indexOf('系统日历') >= 0);
+
+  // ①-0 跨天日程（结束早于开始）→ 写入系统日历时结束落在次日，不产生负时长
+  await evaluate("__calls.length=0; document.querySelector('#btnAddEvent').click(); 1");
+  await sleep(300);
+  await evaluate("document.querySelector('#evTitle').value='跨天值班'; document.querySelector('#evDate').value='" + d1 + "';"
+    + " document.querySelector('#evStart').value='23:30'; document.querySelector('#evEnd').value='00:30';"
+    + " document.querySelector('#evSync').click(); document.querySelector('#sevSave').click(); 1");
+  await sleep(800);
+  const cX = String(await evaluate("JSON.stringify(__calls.filter(function(c){return String(c[0])==='CalBridge.createEvent';}))"));
+  check('跨天日程的结束时间落在次日', cX.indexOf('"end":"' + (await evaluate('ymd(addDays(baseDate(),1))')) + 'T00:30:00"') >= 0, cX);
+  await evaluate("S.events=S.events.filter(e=>e.title!=='跨天值班'); 1");
 
   // ① 新增一条，勾选同步
   await evaluate("document.querySelector('#btnAddEvent').click(); 1");

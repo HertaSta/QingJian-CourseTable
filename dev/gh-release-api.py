@@ -12,6 +12,10 @@ api.github.com（建 Release）与 uploads.github.com（传附件）都被代理
     GH_TOK=ghp_xxx python dev/gh-release-api.py v0.1.7 dev/_body.md \
         "历史版本/清笺课程表-v0.1.7.apk" QingJian-CourseTable-v0.1.7.apk
 
+目标仓库默认是公开仓库 HertaSta/QingJian-CourseTable；发测试版时用 GH_REPO 指到
+私人仓库 HertaSta/QingJian-CourseTable-Test。测试版 Release 建议加 GH_PRERELEASE=1
+（标记为预发布，更贴合「测试版」的语义）。
+
 已存在同名 Release / 附件时会跳过，可安全重跑。
 """
 import json
@@ -20,7 +24,8 @@ import sys
 import urllib.error
 import urllib.request
 
-REPO = "HertaSta/QingJian-CourseTable"
+REPO = os.environ.get("GH_REPO", "").strip() or "HertaSta/QingJian-CourseTable"
+PRERELEASE = os.environ.get("GH_PRERELEASE", "").strip() not in ("", "0", "false", "False")
 TOKEN = os.environ.get("GH_TOK", "").strip()
 
 if not TOKEN:
@@ -66,7 +71,7 @@ def main():
             raise
         rel = api("POST", "https://api.github.com/repos/%s/releases" % REPO, {
             "tag_name": TAG, "target_commitish": "main", "name": TAG,
-            "body": body, "draft": False, "prerelease": False})
+            "body": body, "draft": False, "prerelease": PRERELEASE})
         print("Release 已创建 id=%s" % rel["id"])
     rid = rel["id"]
 
