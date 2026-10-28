@@ -29,6 +29,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await send('Runtime.enable'); await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   for (let i = 0; i < 100; i++) { if (await ev('window.__ready===true') === true) break; await sleep(120); }
+  /* 首启会自动弹「导入课程表」，等它弹完再抢回镜头，否则截到的是导入面板 */
+  await sleep(2200);
   await ev('try{hideSheet()}catch(e){}; try{renderAbout()}catch(e){}; try{renderFeedback()}catch(e){}; showSheet("#sheetFeedback"); 1');
   await sleep(900);
   const shot = await send('Page.captureScreenshot', { format: 'png' });
