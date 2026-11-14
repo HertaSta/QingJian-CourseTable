@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?><!-- 今天与明天：固定表头 + 可上下滚动的课程行。
+     卡底与表头是位图；表体是 ListView，每行一节课（课名 / 时间 / 地点 · 教师）。
+     卡片被拉扁时不裁信息，改为少露几行、由 ListView 滚动。
+     注意：Android 的 AppWidget 不支持 ScrollView，可滚动只能用 ListView 这条路。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/troot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- 圆角卡底，垫在最下面；透明度变化时整张重画 -->
+    <ImageView
+        android:id="@+id/tbgw"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="fitXY" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- 表头：日期 + 周次，固定不滚 -->
+        <ImageView
+            android:id="@+id/theadH"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="@null"
+            android:scaleType="fitXY" />
+
+        <!-- 表体：节 / 空状态 / 课程，ListView 提供真滚动 -->
+        <ListView
+            android:id="@+id/tlist"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:cacheColorHint="@android:color/transparent"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:fadeScrollbars="false"
+            android:listSelector="@android:color/transparent"
+            android:overScrollMode="never"
+            android:paddingBottom="10dp"
+            android:scrollbarSize="2dp"
+            android:scrollbarStyle="insideOverlay"
+            android:scrollbarThumbVertical="@drawable/widget_scroll_thumb"
+            android:scrollbars="vertical" />
+    </LinearLayout>
+
+    <!-- 还没同步过数据时的提示 -->
+    <TextView
+        android:id="@+id/tempty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="@string/widget_need_sync"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
+</FrameLayout>

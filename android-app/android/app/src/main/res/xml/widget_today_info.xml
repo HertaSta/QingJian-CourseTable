@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 今天与明天：默认 4×2，可横竖拉伸。
+     以前整块是一张图，高度一压窄就只能砍信息，所以 minHeight 只能给 180dp；
+     现在表体是可滚动的 ListView，压扁也不会丢课名/时间/地点/教师，
+     于是 minHeight 降到 110dp，允许拖成更扁的一条。
+     updatePeriodMillis 半小时一次，主要是为了让「第几周」「今天/明天是哪天」能随日期自己翻页。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_image"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_today_desc" />

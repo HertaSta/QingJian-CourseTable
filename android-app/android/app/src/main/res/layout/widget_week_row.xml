@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?><!-- 表体的一行 = 一个节次的横向切片，整行就是一张位图。
+     layout_height 用 wrap_content，高度直接取位图自身高度，这样行高能跟着小组件尺寸变。 -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wrowimg"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:contentDescription="@null"
+    android:scaleType="fitXY" />

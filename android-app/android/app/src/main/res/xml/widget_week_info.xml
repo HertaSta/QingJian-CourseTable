@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 本周课表：默认 4×2（250×110dp），横竖都可拉伸。
+     宽 4 格是因为多数桌面只有 4 列，minWidth 超过列数有可能被桌面过滤掉。
+     高度压到 110dp 时表头 48dp + 一行 44dp 正好放得下一节，
+     剩下的节次上下滑动看 —— 行高有下限（44dp），时间与教室不会被挤掉。 -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_week_desc"
+    android:initialLayout="@layout/widget_week"
+    android:minHeight="110dp"
+    android:minWidth="250dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="4"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

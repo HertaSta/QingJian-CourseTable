@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DIR = 'D:/项目归档/CourseTable';
+const DIR = __dirname;
 const src = path.join(DIR, 'index.html');
 const lib = path.join(DIR, 'xlsx.full.min.js');
 const out = path.join(DIR, '清笺课程表.html');

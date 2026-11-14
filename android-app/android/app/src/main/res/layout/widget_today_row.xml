@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?><!-- 今天与明天表体的一行：整行是一张位图（节标题 / 课程 / 空状态都画在位图里）。
+     行高由 WidgetRender 按内容算，所以这里用 wrap_content。 -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/trowimg"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:contentDescription="@null"
+    android:scaleType="fitXY" />

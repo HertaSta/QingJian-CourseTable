@@ -130,6 +130,12 @@ public class UniImportPlugin extends Plugin {
     /** 从 assets 里读出适配脚本清单、桥初始化脚本和 jQuery 兜底。 */
     private void loadAssets(String scriptId) throws Exception {
         // 先按学校 id 找（schools.json，两百多所），找不到再回退到四类通用脚本
+        //
+        // 清单里有两类条目：
+        //   ① 有 script 字段的 —— 该校专用脚本，路径相对 schools/
+        //   ② 只有 g 字段的     —— 只登记了校名与网址，解析复用 assets/uniimport/<g>.js
+        //      这个通用脚本（g ∈ zhengfang / chaoxing / qingguo / urp）。
+        //      这类条目的适配未经实测，导入未必成功，但至少不用手动填网址。
         String scriptFile = null;
         try {
             JSONObject root = new JSONObject(readAsset(ASSET_DIR + "/schools/schools.json"));
@@ -138,7 +144,13 @@ public class UniImportPlugin extends Plugin {
                 for (int i = 0; i < arr.length(); i++) {
                     JSONObject a = arr.optJSONObject(i);
                     if (a != null && scriptId.equals(a.optString("id"))) {
-                        scriptFile = "schools/" + a.optString("script", "");
+                        String g = a.optString("g", "");
+                        String own = a.optString("script", "");
+                        if (!own.isEmpty()) {
+                            scriptFile = "schools/" + own;
+                        } else if (!g.isEmpty()) {
+                            scriptFile = g + ".js";
+                        }
                         adapterName = a.optString("sub", a.optString("name", scriptId));
                         break;
                     }

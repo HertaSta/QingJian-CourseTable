@@ -32,6 +32,26 @@
   --bg-body:#eef8f5;
   --bg-img:linear-gradient(165deg,#eefaf7,#f2fbf6);
   --rowh:62px;--timew:44px;--headh:104px;--radius:20px;
+  /* ============ 动效 token ============
+     参考星愿档案 Motion.java 的思路：全站只用三条曲线、四个时长。
+     规则一：退出永远比进入快（180 < 260/280），否则关闭时会「黏手」。
+     规则二：同一语义只用同一条曲线，不混 ease-out / linear / 自定义。 */
+  --m-enter:260ms;      /* 弹层进入 */
+  --m-exit:180ms;       /* 弹层退出 */
+  --m-content:280ms;    /* 内容切换 */
+  --m-switch:320ms;     /* Tab / 页面切换 */
+  --e-enter:cubic-bezier(.16,1,.3,1);    /* 急起缓收，同 emphasized-decelerate */
+  --e-move:cubic-bezier(.2,0,.2,1);      /* 标准缓动 */
+  --e-exit:cubic-bezier(.4,0,1,1);       /* 加速离场 */
+  --stagger:28ms;       /* 列表逐行错峰步长，超过 400ms 后不再累加 */
+  /* ============ 排版 token ============
+     原先各处字号/行高/颜色是散落的魔法值，同一层级在不同面板里不一样
+     （例如说明文字有 11.5 / 12 / 12.5 / 13 四种），换行规则也不统一。
+     这里收敛成一套字阶：标题 19 / 小标题 16 / 卡内标题 14 / 正文 13.5 /
+     说明 12 / 极小 11。正文行高 1.6，说明文 1.7，长段落 1.85。 */
+  --fs-h1:19px;--fs-h2:16px;--fs-h3:14px;
+  --fs-body:13.5px;--fs-note:12px;--fs-mini:11px;
+  --lh-body:1.6;--lh-note:1.7;--lh-para:1.85;
 }
 [data-theme="dark"]{
   --bg:#0b1513;--card:rgba(30,44,42,.52);
@@ -49,6 +69,34 @@
   --bg-body:#091311;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* ============ 统一的换行与断词 ============
+   旧版用 word-break:break-all，中文没问题，但英文校名/邮箱/网址会被从单词中间
+   劈开（"Wuhan Railway Voc ational College" 这种），一眼就是排版没对齐。
+   中文本身可以在任意字间断行，所以正确做法是 overflow-wrap:anywhere 兜底，
+   只在没有空格可断时才硬断 —— 有空格就优先在空格处断。 */
+body,button,input,select,textarea{word-break:normal;overflow-wrap:anywhere}
+/* 长串（URL / 邮箱 / 学号）单独允许硬断，避免把容器撑出横向滚动 */
+.qj-break{word-break:break-all;overflow-wrap:anywhere}
+/* 段落文字：不缩进、两端对齐只在长段落用，短句用左对齐更自然 */
+.qj-para{line-height:var(--lh-para);text-align:left;text-wrap:pretty}
+/* ============ 关键帧 ============ */
+@keyframes qj-fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes qj-fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes qj-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+@keyframes qj-reveal{from{clip-path:circle(0 at var(--rx,50%) var(--ry,50%))}to{clip-path:circle(var(--rr,150%) at var(--rx,50%) var(--ry,50%))}}
+/* 逐行错峰入场：元素带 style="--i:N"，延迟 = N*28ms，超过 400ms 后封顶
+   （星愿档案 MoonwardPityBar 的做法：startDelay = min(400, index*28)，
+   避免长列表末尾要等太久才出现） */
+.qj-stagger{animation:qj-fadeUp var(--m-content) var(--e-enter) both;animation-delay:min(400ms,calc(var(--i,0) * var(--stagger)))}
+/* 课表格子专用：只淡入、不做位移。
+   因为 .cc 自己有 :active{transform:scale(.96)}，动画若也写 transform，
+   fill 模式会把按下时的缩放盖掉，手感就没了。 */
+.qj-stagger-in{animation:qj-fadeIn var(--m-content) var(--e-enter) both;animation-delay:min(400ms,calc(var(--i,0) * var(--stagger)))}
+/* 系统开了「减弱动态效果」时全部退化为瞬时切换。
+   星愿档案是逐个动画里查 areAnimatorsEnabled()，CSS 版一条媒体查询就能覆盖全站。 */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-delay:0ms !important;transition-duration:.01ms !important}
+}
 html,body{margin:0;padding:0;height:100%}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{
@@ -66,9 +114,14 @@ input,select,textarea{font-family:inherit;font-size:14px;color:var(--text)}
 /* ============ 顶栏 ============ */
 #topbar{padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 9px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-bottom:1px solid var(--glass-brd);flex:none;position:relative;z-index:6}
 .tb-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-.tb-date{font-size:23px;font-weight:800;letter-spacing:-.4px;line-height:1.15}
-.tb-sub{font-size:13px;color:var(--sub);margin-top:3px;font-weight:500}
+.tb-row>div:first-child{min-width:0}
+.tb-date{font-size:23px;font-weight:800;letter-spacing:-.4px;line-height:1.15;white-space:nowrap}
+/* 顶栏副标题：周次与「正在看第 N 周」分两个不可断开的片段，
+   放不下时整段落到第二行，而不是把括号里的字劈成「周）」这样的孤行 */
+.tb-sub{font-size:13px;color:var(--sub);margin-top:3px;font-weight:500;display:flex;flex-wrap:wrap;align-items:baseline;column-gap:6px;row-gap:1px}
 .tb-sub b{color:var(--accent);font-weight:700}
+.tb-sub .tb-wk{white-space:nowrap}
+.tb-sub .tb-cur{color:var(--sub2);white-space:nowrap;font-size:12px}
 .tb-acts{display:flex;gap:2px;align-items:center;padding-top:4px}
 .ibtn{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text);transition:background .15s}
 .ibtn:active{background:rgba(var(--sh-tint),.16)}
@@ -98,7 +151,9 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .wh-day.other .dd{color:var(--sub2);font-weight:600}
 .wh-day.other .wd{color:var(--sub2)}
 
-#gridScroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;position:relative}
+#gridScroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;position:relative;scrollbar-width:none;-ms-overflow-style:none}
+/* 隐藏滚动条占位：否则内容区比容器窄一条（桌面版约 15px），周日列右边会露出一条竖空白带 */
+#gridScroll::-webkit-scrollbar{width:0;height:0;display:none}
 #gridBody{display:flex;position:relative}
 #timeCol{width:var(--timew);flex:none;border-right:1px solid var(--line2)}
 .tcell{height:var(--rowh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:var(--sub);border-bottom:1px solid var(--line2)}
@@ -124,16 +179,33 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .cc .rm .rc{display:block;font-weight:600;letter-spacing:-.2px;word-break:break-all;overflow:hidden}
 .cc .rm .rn{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
 .cc .tc{font-size:.857em;line-height:1.2;margin-top:auto;padding-top:3px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}
+/* 自定义过时间的课：块里多一行「08:30-09:15」。只在真的改过节次表默认时间时才出现，
+   没改的课不占这一行，排版和原来完全一样。 */
+.cc .tm{font-size:.8em;line-height:1.2;opacity:.94;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto;font-variant-numeric:tabular-nums}
+.cc .tm:empty{display:none}
 .cc.spanx .tc{opacity:.94}
 .badge{position:absolute;top:3px;right:3px;font-size:8px;background:rgba(255,255,255,.3);border-radius:5px;padding:0 3px;line-height:13px}
 
 /* ============ 底部导航 ============ */
-#tabbar{flex:none;display:flex;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-top:1px solid var(--glass-brd);box-shadow:0 -8px 24px rgba(var(--sh-tint),.08);padding-bottom:env(safe-area-inset-bottom,0px)}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;color:var(--sub);font-size:11px;font-weight:600;position:relative}
-.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#tabbar{flex:none;display:flex;position:relative;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-top:1px solid var(--glass-brd);box-shadow:0 -8px 24px rgba(var(--sh-tint),.08);padding-bottom:env(safe-area-inset-bottom,0px)}
+/* ---- 滑动胶囊 ----
+   星愿档案 BottomNavigation 的做法简化版：胶囊不是固定在四个槽位间跳，
+   而是由 --ti 这个「连续权重」驱动的 translateX —— 拖动时手指到哪胶囊到哪，
+   松手才吸附到最近的 tab。--ti 可以是小数（如 1.37 = 在课表和学习之间）。 */
+#tabGlider{position:absolute;top:5px;bottom:5px;left:0;width:25%;padding:0 7px;pointer-events:none;
+  transform:translateX(calc(var(--ti,1) * 100%));transition:transform var(--m-switch) var(--e-move)}
+#tabGlider i{display:block;height:100%;border-radius:14px;background:var(--accent-soft);border:1px solid var(--glass-brd);
+  box-shadow:0 2px 10px rgba(var(--sh-tint),.10);transform:scale(.94)}
+#tabbar.drag #tabGlider{transition:none}
+#tabbar.drag #tabGlider i{transform:scale(1)}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 0;color:var(--sub);font-size:11px;font-weight:600;position:relative;z-index:1;
+  transition:color var(--m-switch) var(--e-move),transform var(--m-switch) var(--e-move)}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+  transition:transform var(--m-switch) var(--e-move),stroke var(--m-switch) var(--e-move)}
 .tab.on{color:var(--accent)}
-.tab.on svg{stroke:var(--accent)}
-.tab.on::after{content:'';position:absolute;bottom:3px;width:18px;height:3px;border-radius:3px;background:var(--grad)}
+.tab.on svg{stroke:var(--accent);transform:scale(1.08)}
+/* 原来那条 18×3 的下划线换成胶囊后就是重复信息，去掉（保留规则位以便回退） */
+.tab.on::after{content:none}
 
 /* ============ 通用页面内容 ============ */
 .scroller{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 14px 26px}
@@ -143,8 +215,8 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 }
 .card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-brd);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--glass-sh)}
 .card h3{margin:0 0 10px;font-size:14px;font-weight:800}
-.muted{color:var(--sub);font-size:12.5px;line-height:1.6}
-.empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:13px;line-height:1.8}
+.muted{color:var(--sub);font-size:var(--fs-note);line-height:var(--lh-note)}
+.empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:var(--fs-body);line-height:var(--lh-para)}
 .btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border-radius:14px;background:var(--grad);color:#fff;font-size:14.5px;font-weight:700;box-shadow:0 8px 20px rgba(var(--sh-tint),.30),inset 0 1px 0 rgba(255,255,255,.4)}
 .btn:active{opacity:.9}
 .btn.sec{background:var(--field);color:var(--text);border:1px solid var(--glass-brd);box-shadow:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-weight:600}
@@ -201,19 +273,20 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .search svg{width:17px;height:17px;stroke:var(--sub);fill:none;stroke-width:2}
 
 /* ============ 弹层 ============ */
-.mask{position:fixed;inset:0;background:rgba(8,26,24,.34);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;opacity:0;pointer-events:none;transition:opacity .22s}
-.mask.on{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:50%;transform:translateX(-50%) translateY(105%);bottom:0;width:100%;max-width:560px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-brd);border-bottom:none;border-radius:22px 22px 0 0;box-shadow:0 -14px 46px rgba(var(--sh-tint),.24);z-index:101;transition:transform .28s cubic-bezier(.32,.72,0,1);max-height:88vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
-.sheet.on{transform:translateX(-50%) translateY(0)}
+.mask{position:fixed;inset:0;background:rgba(8,26,24,.34);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;opacity:0;pointer-events:none;transition:opacity var(--m-exit) var(--e-exit)}
+.mask.on{opacity:1;pointer-events:auto;transition:opacity var(--m-enter) var(--e-enter)}
+.sheet{position:fixed;left:50%;transform:translateX(-50%) translateY(105%);bottom:0;width:100%;max-width:560px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-brd);border-bottom:none;border-radius:22px 22px 0 0;box-shadow:0 -14px 46px rgba(var(--sh-tint),.24);z-index:101;transition:transform var(--m-exit) var(--e-exit);max-height:88vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+/* 进入用 260ms 急起缓收、退出用 180ms 加速离场 —— 关闭比打开快，手感才不「黏」 */
+.sheet.on{transform:translateX(-50%) translateY(0);transition:transform var(--m-enter) var(--e-enter)}
 .sh-head{display:flex;align-items:center;gap:8px;padding:16px 14px 12px;border-bottom:1px solid var(--line2);flex:none}
-.sh-head .t{flex:1;min-width:0;font-size:17px;font-weight:800;word-break:break-all}
+.sh-head .t{flex:1;min-width:0;font-size:var(--fs-h2);font-weight:800;overflow-wrap:anywhere}
 .sh-head .ibtn{color:var(--sub)}
 .sh-head .ibtn.red{color:var(--red)}
 .sh-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px 14px 18px}
 .dr{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--line2)}
 .dr:last-child{border-bottom:none}
 .dr svg{width:19px;height:19px;flex:none;margin-top:2px;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.dr .dv{flex:1;min-width:0;font-size:14.5px;line-height:1.5;word-break:break-all}
+.dr .dv{flex:1;min-width:0;font-size:var(--fs-body);line-height:var(--lh-body);overflow-wrap:anywhere}
 .dr .dv small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
 .dr.i-cal svg{stroke:#10b981}
 .dr.i-clock svg{stroke:#f59e0b}
@@ -227,12 +300,32 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .flabel{font-size:12px;color:var(--sub);font-weight:700;margin-bottom:6px}
 .finput,.fselect{width:100%;padding:10px 12px;border-radius:12px;background:var(--field);border:1px solid var(--glass-brd);outline:none;font-size:14.5px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .finput:focus,.fselect:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+/* ---- 字段级校验反馈 ----
+   借鉴星愿档案 FieldFeedback：错误文案常驻在字段下方（默认 display:none），
+   只有「已经出错」之后才开启实时校验 —— 用户边改边看到红字消失，
+   但还没出过错的时候不会被打扰。 */
+.finput.err{border-color:#e5484d;box-shadow:0 0 0 3px rgba(229,72,77,.16)}
+.ferr{font-size:12px;color:#e5484d;font-weight:600;padding:5px 2px 0;display:none}
+.ferr.on{display:block;animation:qj-fadeUp 180ms var(--e-enter) both}
+/* 抖动：和星愿档案的 ObjectAnimator 位移序列一致 0→-5→5→-3→3→0 */
+.fgroup.shake .finput,.fgroup.shake .fselect{animation:qj-shake 280ms var(--e-move)}
 .finput::placeholder{color:var(--sub2)}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
 .chip{padding:8px 4px;border-radius:10px;background:var(--field);text-align:center;font-size:13px;font-weight:700;color:var(--sub);border:1.5px solid transparent}
 .chip.on{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
-.hint{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.55}
+.hint{font-size:var(--fs-note);color:var(--sub);margin-top:6px;line-height:var(--lh-note)}
+/* ---- 一节课自己的时间 ----
+   默认跟随「节次时间」表；点「自定义」才允许改。改过之后这节课就和节次表脱钩，
+   之后调整全局节次时间也不会影响它（导入课表带进来的时间也是这么固定的）。 */
+.ftime{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--field);border:1px solid var(--glass-brd)}
+.ftime-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ftime-label{font-size:var(--fs-note);font-weight:700;color:var(--sub)}
+.ftime-toggle{padding:5px 11px;border-radius:999px;background:transparent;border:1px solid var(--glass-brd);color:var(--sub);font-size:var(--fs-mini);font-weight:700}
+.ftime-toggle.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.ftime-body{display:none;margin-top:9px}
+.ftime.on .ftime-body{display:block;animation:qj-fadeUp var(--m-enter) var(--e-enter) both}
+.ftime-in{font-variant-numeric:tabular-nums;text-align:center;padding:8px 10px}
 .palette{display:flex;flex-wrap:wrap;gap:8px;padding-top:2px}
 .pd{width:28px;height:28px;border-radius:10px;border:2.5px solid transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
 .pd.on{border-color:var(--text);transform:scale(1.08)}
@@ -281,6 +374,8 @@ html.native-app{-webkit-touch-callout:none}
 html.native-app input,html.native-app textarea{-webkit-user-select:text;user-select:text}
 /* 只在安卓 App 里显示的入口（网页版隐藏，因为浏览器跨域读不到教务系统） */
 html:not(.native-app) .native-only{display:none !important}
+/* 反向：只在网页版显示（安卓版里已有上面的原生入口，避免重复按钮） */
+html.native-app .web-only{display:none !important}
 
 /* ============ 自定义背景图 ============ */
 #bgLayer,#bgMask{position:fixed;inset:0;z-index:0;pointer-events:none}
@@ -319,12 +414,12 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .about .lg b{font-size:16px;font-weight:800}
 .about .lg .v{font-size:11.5px;color:var(--sub);font-weight:700;margin-top:3px}
 .about .tag{display:inline-block;font-size:10.5px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:8px;padding:3px 9px;margin:10px 6px 0 0}
-.about .tx{font-size:12px;color:var(--sub);line-height:1.8;margin-top:12px}
+.about .tx{font-size:var(--fs-note);color:var(--sub);line-height:var(--lh-para);margin-top:12px}
 .about .lk{display:flex;align-items:center;gap:8px;margin-top:13px;padding-top:13px;border-top:1px solid var(--line2);font-size:13.5px;font-weight:700;color:var(--accent);cursor:pointer}
 .about .lk svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .about .lk .chev{margin-left:auto;stroke:var(--sub2);stroke-width:2.4}
 .about .lk:active{opacity:.65}
-.fb-tx{font-size:12.5px;color:var(--sub);line-height:1.75}
+.fb-tx{font-size:var(--fs-note);color:var(--sub);line-height:var(--lh-para)}
 .fb-mail{display:flex;align-items:center;gap:9px;margin-top:12px;padding:11px 12px;border-radius:14px;background:var(--field);border:1px solid var(--glass-brd)}
 .fb-mail svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .fb-mail .m{flex:1;min-width:0;font-size:13.5px;font-weight:700;color:var(--text);word-break:break-all;-webkit-user-select:text;user-select:text}
@@ -339,7 +434,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .navrow .ni svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .navrow .nt{flex:1;min-width:0}
 .navrow .nt b{display:block;font-size:14.5px;font-weight:700}
-.navrow .nt small{display:block;font-size:11.5px;color:var(--sub);margin-top:2px;line-height:1.5;overflow-wrap:break-word}
+.navrow .nt small{display:block;font-size:var(--fs-mini);color:var(--sub);margin-top:2px;line-height:var(--lh-body);overflow-wrap:anywhere}
 .navrow .chev{width:17px;height:17px;stroke:var(--sub2);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;flex:none}
 /* 设置一级列表：一行一个二级模块 */
 .setlist .navrow{border-bottom:1px solid var(--line2)}
@@ -350,22 +445,53 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 .sheet.cat .card:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
 .sheet.cat .card h3{font-size:14px;margin-bottom:8px}
 /* 隐私政策正文 */
-.pv-h{font-size:13.5px;font-weight:800;margin:16px 0 6px}
-.pv-p{font-size:12.5px;color:var(--sub);line-height:1.9;margin:0 0 8px}
+.pv-h{font-size:var(--fs-body);font-weight:800;margin:16px 0 6px}
+.pv-p{font-size:var(--fs-note);color:var(--sub);line-height:var(--lh-para);margin:0 0 8px}
 .pv-p b{color:var(--text)}
 .pv-note{font-size:11.5px;color:var(--sub2);line-height:1.7;margin-top:18px;padding-top:12px;border-top:1px solid var(--line2)}
 /* 导入教程正文 */
-.tut-lead{font-size:12.5px;color:var(--sub);line-height:1.9;margin:2px 0 2px}
+.tut-lead{font-size:var(--fs-note);color:var(--sub);line-height:var(--lh-para);margin:2px 0 2px}
 .tut-lead b{color:var(--text)}
 .tut-step{display:flex;gap:10px;margin-top:16px}
 .tut-step .no{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
 .tut-step .bd{flex:1;min-width:0}
 .tut-step .tt{font-size:13px;font-weight:800;margin-bottom:4px}
-.tut-step .tx{font-size:12.5px;color:var(--sub);line-height:1.9}
+.tut-step .tx{font-size:var(--fs-body);color:var(--sub);line-height:var(--lh-para)}
 .tut-step .tx b{color:var(--text)}
-.tut-warn{margin-top:20px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);font-size:12.5px;color:var(--sub);line-height:1.9}
+.tut-warn{margin-top:20px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);font-size:var(--fs-note);color:var(--sub);line-height:var(--lh-para)}
 .tut-warn b{color:var(--text)}
-.tut-tip{margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--accent-soft);font-size:12px;color:var(--sub);line-height:1.8}
+.tut-tip{margin-top:8px;padding:9px 12px;border-radius:10px;background:var(--accent-soft);font-size:var(--fs-note);color:var(--sub);line-height:var(--lh-para)}
+
+/* ============ 首次启动的功能指引 ============ */
+.gd-h{font-size:var(--fs-h1);font-weight:800;line-height:1.35;letter-spacing:-.2px;margin:2px 0 14px;overflow-wrap:anywhere}
+.gdtx{font-size:var(--fs-body);color:var(--sub);line-height:var(--lh-para);margin:0 0 12px;overflow-wrap:anywhere}
+.gdtx b{color:var(--text)}
+.gdlist{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+.gditem{padding:13px 14px;border-radius:14px;background:var(--field);border:1px solid var(--line2)}
+.gi-h{display:flex;align-items:center;gap:7px;font-size:var(--fs-body);font-weight:800;color:var(--text);line-height:1.45;overflow-wrap:anywhere}
+.gi-t{margin-top:6px;font-size:var(--fs-note);color:var(--sub);line-height:var(--lh-para);overflow-wrap:anywhere}
+.gi-t b{color:var(--text)}
+/* 三种导入方式前的圆点，按推荐度递减排色：主色 → 中性 → 更淡 */
+.gi-k{width:7px;height:7px;border-radius:50%;flex:none;background:var(--sub2)}
+.gi-k-a{background:var(--accent)}
+.gi-k-b{background:var(--sub)}
+.gdacts{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.gd-foot{margin-top:20px;padding-top:14px;border-top:1px solid var(--line2)}
+.gd-dots{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:12px}
+.gd-dots i{width:6px;height:6px;border-radius:50%;background:var(--line2);transition:width var(--m-content) var(--e-move),background var(--m-content) var(--e-move)}
+.gd-dots i.on{width:18px;border-radius:3px;background:var(--accent)}
+.gd-btns{display:flex;gap:8px}
+.gd-btns .btn{flex:1}
+.gd-skip{margin-top:10px}
+.gd-skip .btn{width:100%}
+.qj-dayhd{font-size:var(--fs-body);font-weight:700;margin-bottom:8px;overflow-wrap:anywhere}
+/* 校园网提示块：比普通 tip 更重，因为「连不上校园网」是导入失败最常见的原因 */
+.tut-net{margin:0 0 6px;padding:13px 14px;border-radius:14px;background:var(--accent-soft);border:1px solid rgba(var(--sh-tint),.16)}
+.tut-net .tn-h{display:flex;align-items:center;gap:7px;font-size:var(--fs-body);font-weight:800;color:var(--accent);margin-bottom:7px}
+.tut-net .tn-h svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tut-net .tn-tx{font-size:var(--fs-note);color:var(--sub);line-height:var(--lh-para);margin-top:6px}
+.tut-net .tn-tx b{color:var(--text)}
+.tut-net .tn-tip{margin-top:9px;padding-top:9px;border-top:1px solid rgba(var(--sh-tint),.16);font-size:var(--fs-mini);color:var(--sub2);line-height:var(--lh-note)}
 .tut-tip b{color:var(--text)}
 /* 更新说明正文：保留换行，过长时内部滚动 */
 .upnotes{font-size:12.5px;color:var(--sub);line-height:1.85;white-space:pre-wrap;overflow-wrap:break-word;max-height:230px;overflow-y:auto;background:var(--field);border-radius:12px;padding:10px 12px;margin-top:4px}
@@ -417,7 +543,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
         <button class="ibtn" id="btnImport" title="导入Excel">
           <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>
         </button>
-        <button class="ibtn" id="btnExport" title="导出/分享">
+        <button class="ibtn" id="btnExport" title="导出当前周为图片">
           <svg viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M4 20h16"/></svg>
         </button>
         <button class="ibtn" id="btnMore" title="更多">
@@ -481,6 +607,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
 
   <!-- ============ 底部导航 ============ -->
   <nav id="tabbar">
+    <div id="tabGlider"><i></i></div>
     <button class="tab" data-tab="today">
       <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg><span>日程</span>
     </button>
@@ -522,6 +649,18 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
       <div class="flabel">节次（第几节到第几节）</div>
       <div class="fgrid"><select class="fselect" id="fS"></select><select class="fselect" id="fE"></select></div>
       <div class="hint" id="fTimeHint"></div>
+      <!-- 这里改的是「这节课自己的钟点」，用来覆盖课表里按节次表推出来的默认时间。
+           不动就是跟随节次表；一旦动过就固定下来，即使之后去设置里改了节次时间也不跟着变。 -->
+      <div class="ftime" id="fTimeBox">
+        <div class="ftime-head">
+          <div class="ftime-label">这节课的时间</div>
+          <button type="button" class="ftime-toggle" id="fTimeToggle">自定义</button>
+        </div>
+        <div class="ftime-body" id="fTimeBody">
+          <div class="fgrid"><input class="finput ftime-in" id="fStart" type="time"><input class="finput ftime-in" id="fEnd" type="time"></div>
+          <div class="hint" id="fTimeNote"></div>
+        </div>
+      </div>
     </div>
     <div class="fgroup">
       <div class="flabel">周次</div>
@@ -594,6 +733,15 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     <button class="ibtn catCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </div>
   <div class="sh-body" id="uniBody"></div>
+</div>
+
+<!-- 首次启动的功能指引（只在第一次运行时自动出现，之后可从设置里重新打开） -->
+<div class="sheet" id="sheetGuide">
+  <div class="sh-head">
+    <div class="t" id="gdTitle">欢迎使用</div>
+    <button class="ibtn" id="gdCancel"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
+  <div class="sh-body" id="gdBody"></div>
 </div>
 
 <!-- 更多菜单 -->
@@ -694,6 +842,11 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
         <div class="nt"><b>检查更新</b><small id="smUpdate">—</small></div>
         <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
       </div>
+      <div class="navrow" data-go="#sheetGuide" id="navGuide">
+        <div class="ni"><svg viewBox="0 0 24 24"><path d="M4 5.5A2 2 0 0 1 6 3.5h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+        <div class="nt"><b>使用指引</b><small>应用能做什么、怎么导入课表</small></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </div>
       <div class="navrow" data-go="#sheetAbout">
         <div class="ni"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.2"/><path d="M12 7.9h.01"/></svg></div>
         <div class="nt"><b>关于</b><small id="smAbout">—</small></div>
@@ -762,7 +915,7 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
     </div>
     <div class="card">
       <h3>界面背景图</h3>
-      <div class="row"><span class="k">当前背景</span><span class="muted" id="bgState" style="font-size:12px">默认渐变</span></div>
+      <div class="row"><span class="k">当前背景</span><span class="muted" id="bgState">默认渐变</span></div>
       <div class="frow2">
         <button class="btn sec" id="btnBgPick" style="margin-top:0">从相册选择</button>
         <button class="btn sec" id="btnBgClear" style="margin-top:0">恢复默认</button>
@@ -786,9 +939,11 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
   <div class="sh-body">
     <div class="card">
       <h3>导入</h3>
-      <button class="btn sec" id="btnImport2">导入 Excel 课程表</button>
-      <button class="btn sec native-only" id="btnImportZw">从教务系统导入</button>
-      <div class="hint">导入 Excel：支持教务系统导出的 .xlsx / .xls 文件，导入时可选择覆盖、新建或合并到当前课程表。<br>从教务系统导入（安卓版）：在应用内选择学校并登录，自动读取课表，不必先导出文件。</div>
+      <button class="btn native-only" id="btnImportZw">从教务系统导入</button>
+      <button class="btn sec native-only" id="btnImport2" style="margin-top:8px">导入 Excel 课程表</button>
+      <!-- 网页版没有 WebView 桥，只能走 Excel；此时它就该是主按钮 -->
+      <button class="btn web-only" id="btnImport2w">导入 Excel 课程表</button>
+      <div class="hint">从教务系统导入（安卓版，推荐）：在应用内打开学校教务系统，你自己登录、自己打开课表页，再点「执行导入」把课表读回来，不必先导出文件。多数学校需要先连校园网。<br>导入 Excel（备选）：先在教务系统导出 .xlsx / .xls，再回到这里选文件；导入时可选择覆盖、新建或合并到当前课程表。</div>
     </div>
     <div class="card">
       <h3>导出</h3>
@@ -816,8 +971,8 @@ body.has-bg{background-color:#0e1116!important;background-image:none!important}
   <div class="sh-body">
     <div class="card">
       <h3>版本</h3>
-      <div class="row"><span class="k">当前版本</span><span class="muted" id="upCur" style="font-size:13px">—</span></div>
-      <div class="row"><span class="k">最新版本</span><span class="muted" id="upLatest" style="font-size:13px">未检查</span></div>
+      <div class="row"><span class="k">当前版本</span><span class="muted" id="upCur">—</span></div>
+      <div class="row"><span class="k">最新版本</span><span class="muted" id="upLatest">未检查</span></div>
       <button class="btn" id="btnCheckUpdate" style="margin-top:12px">检查更新</button>
       <div class="hint" id="upHint">点击后向 GitHub 查询本项目的公开发布记录，不会上传任何数据。除「从教务系统导入」外，应用不会主动联网。</div>
     </div>
@@ -1011,9 +1166,9 @@ const WEEK_CN = ['','星期一','星期二','星期三','星期四','星期五',
 const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
-const APP_VERSION = '0.1.7';
+const APP_VERSION = '0.2.0';
 /* 正式版留空 ''；测试版填 'test'。
-   测试版是独立包名（com.reiro.qingjian.test）、独立排号（v0.0.1、v0.0.2…），与正式版共存，
+   测试版是独立包名（com.reiro.qingjian.test）、独立排号（v0.1.1、v0.1.2…），与正式版共存，
    也不对应 GitHub 上的任何 Release —— 所以测试版不做更新检查，
    免得把正式版的安装包当成「新版本」推过去。打测试版时这里改成 'test'。 */
 const APP_BUILD = '';
@@ -1034,7 +1189,7 @@ const DEFAULT_PERIODS = (() => {
 
 let S = {
   profile: { nickname: '', avatar: '', signature: '', birthday: '' },
-  global:  { dark: false, showWeekend: true, remind: 0, bgImage: '', bgDim: 36,
+  global:  { dark: false, showWeekend: true, remind: 0, bgImage: '', bgDim: 36, guideSeen: 0,
              theme: { preset: DEFAULT_THEME.id, a: DEFAULT_THEME.a, b: DEFAULT_THEME.b, c: DEFAULT_THEME.c } },
   tables:  [],          // 多份课程表 [{id,name,courses,notes,settings,createdAt}]
   activeId: '',
@@ -1092,6 +1247,9 @@ function sanitizeTable(t) {
       note: String(c.note == null ? '' : c.note).slice(0, 500),
       color: /^#[0-9a-f]{6}$/i.test(c.color) ? c.color : '',
       weeks: Array.isArray(c.weeks) ? c.weeks.map(w => +w).filter(w => w >= 1 && w <= 200) : null,
+      /* 这门课自己的钟点；空 = 跟随节次表。格式必须是 HH:MM，否则丢掉 */
+      start: /^\d{1,2}:\d{2}$/.test(String(c.start)) ? String(c.start) : '',
+      end: /^\d{1,2}:\d{2}$/.test(String(c.end)) ? String(c.end) : '',
       roomShort: ''
     };
     if (!o.weeks || !o.weeks.length) o.weeks = null;
@@ -1224,6 +1382,54 @@ function mirrorToNative() {
   if (!isNative()) return;
   clearTimeout(_mirT);
   _mirT = setTimeout(flushNative, 400);   // 合并高频写入
+  scheduleWidgetSync();
+}
+/* ---------------- 桌面小组件 ----------------
+   把「学期起始、节次时间、课程列表」原样推给原生侧，由小组件自己按日期算
+   今天第几周、有几节课。所以只要这里同步过一次，之后几天不开 App，
+   桌面上的内容也不会过期（自己会翻页）。
+   空课表也照样推一份，小组件好显示「打开 App 同步一次」而不是一直空白。 */
+let _wdT = null;
+function widgetBridge() {
+  const C = window.Capacitor;
+  return (C && C.Plugins && C.Plugins.WidgetBridge) || null;
+}
+function darkIsOn() { return !!S.global.dark; }
+function widgetPayload() {
+  const t = activeTable();
+  const st = t.settings || {};
+  const tm = (typeof themeTriple === 'function') ? themeTriple() : null;
+  return {
+    tableName: t.name || '我的课程表',
+    termStart: st.termStart || ymd(defaultTermStart()),
+    totalWeeks: st.totalWeeks || 20,
+    showWeekend: S.global.showWeekend !== false,
+    dark: darkIsOn(),
+    alpha: (S.global.widgetAlpha == null ? 93 : Math.max(40, Math.min(100, S.global.widgetAlpha))),
+    accent: (tm && tm.a) || (S.global.theme && S.global.theme.a) || '#0b8f86',
+    periods: (st.periods || []).map(p => ({ n: p.n, start: p.start || '', end: p.end || '' })),
+    courses: (t.courses || []).map(c => {
+      const ct = courseTime(c);          // 自定义过时间的课，把实际钟点也推过去
+      return {
+        name: c.name || '', room: c.room || '', teacher: c.teacher || '',
+        day: c.day, s: c.s, e: c.e,
+        start: ct.start || '', end: ct.end || '',
+        weeks: (c.weeks && c.weeks.length) ? c.weeks : null,
+        color: c.color || ''
+      };
+    })
+  };
+}
+function scheduleWidgetSync() {
+  if (!isNative() || !widgetBridge()) return;
+  clearTimeout(_wdT);
+  _wdT = setTimeout(pushWidgetData, 700);   // 和写盘一起合并，避免连点改课表时狂推
+}
+async function pushWidgetData() {
+  clearTimeout(_wdT);
+  const B = widgetBridge();
+  if (!isNative() || !B) return;
+  try { await B.setData({ data: widgetPayload() }); } catch (e) {}
 }
 async function flushNative() {
   const C = window.Capacitor;
@@ -1256,6 +1462,62 @@ function toast(msg, ms) {
   toast._t = setTimeout(() => t.classList.remove('on'), ms || 2000);
 }
 function toMin(t) { const m = /^(\d{1,2})[:：](\d{2})$/.exec(String(t).trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+/* ---- 字段级校验：星愿档案 FieldFeedback 的网页版 ----
+   bindField(input, rule) 给某个输入框挂上错误提示；
+   rule(trimmedValue) 返回 null 表示合法，返回字符串表示错误文案。
+   行为约定（照搬星愿档案）：
+   · 没出过错之前不打扰 —— 只有 show() 过之后 text 变化才实时校验；
+   · 出错时输入框加 .err、整组抖一下、文案淡入；
+   · 恢复合法后文案先淡出再 display:none（避免瞬间塌陷导致下方元素跳）；
+   · 文案容器带 aria-live，读屏会自动播报。 */
+function bindField(input, rule, msgEl) {
+  if (!input) return null;
+  /* 同一个输入框只挂一次：openEdit 每次打开都会调用，重复挂会产生一堆重复的提示节点 */
+  if (input._fb) { input._fb._rule = rule; return input._fb; }
+  const group = input.closest('.fgroup') || input.parentNode;
+  let errEl = msgEl;
+  if (!errEl) {
+    errEl = document.createElement('div');
+    errEl.className = 'ferr';
+    errEl.setAttribute('aria-live', 'polite');
+    group.appendChild(errEl);
+  }
+  const api = {
+    invalid: false,
+    _cur: null,
+    _rule: rule,
+    show(msg) {
+      api._cur = msg || '';
+      if (!msg) return api.clear();
+      api.invalid = true;
+      input.classList.add('err');
+      errEl.textContent = msg;
+      if (!errEl.classList.contains('on')) {
+        errEl.classList.add('on');
+        group.classList.remove('shake'); void group.offsetWidth; group.classList.add('shake');
+        try { input.focus(); } catch (_) { }
+      }
+      return false;
+    },
+    clear() {
+      api._cur = null; api.invalid = false;
+      input.classList.remove('err');
+      group.classList.remove('shake');
+      errEl.classList.remove('on'); errEl.textContent = '';
+      return true;
+    },
+    check() {
+      const v = String(input.value == null ? '' : input.value).trim();
+      const rule = api._rule;
+      return api.show(typeof rule === 'function' ? rule(v) : null);
+    }
+  };
+  /* 只有已经出过错才边打边校验 */
+  input.addEventListener('input', () => { if (api.invalid) api.check(); });
+  input.addEventListener('blur', () => { if (api.invalid) api.check(); });
+  input._fb = api;
+  return api;
+}
 function fromMin(m) { m = Math.round(m); return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
 function splitRange(s, e, n) {
   let t0 = toMin(s), t1 = toMin(e);
@@ -1307,6 +1569,15 @@ function periodsBetween(a, b) {
 function periodTimeOf(n, field) {
   const p = (S.settings.periods || []).find(x => x.n === n);
   return (p && p[field]) || '';
+}
+/* 一门课实际用的起止钟点。
+   课程自己带了 start/end（手动改过、或导入时教务系统给了准确时间）就用它，
+   否则退回节次表里对应第 s / 第 e 节的时间。 */
+function courseTime(c) {
+  if (!c) return { start: '', end: '' };
+  const a = (c.start || periodTimeOf(c.s, 'start')) || '';
+  const b = (c.end || periodTimeOf(c.e, 'end')) || '';
+  return { start: a, end: b };
 }
 /* 课程记录的节次可能落在节次时间表之外（例如明细表导入的节次超出默认 10 节，
    或导入后手动改过节次表）。此时夹到表内最近的一节，避免整门课在课表里凭空消失。 */
@@ -1432,12 +1703,15 @@ function renderTopbar() {
   const wd = d.getDay() === 0 ? 7 : d.getDay();
   const tw = S.settings.totalWeeks || 20;
   const cur = (w >= 1 && w <= tw) ? w : null;
-  $('#tbSub').innerHTML = cur != null ? ('第 <b>' + cur + '</b> 周 周' + DAY_SHORT[wd]) : (w < 1 ? '学期还未开始' : '学期已结束');
+  // 两段独立的不可断行片段：周次 / 正在看第 N 周。放不下时第二段整体换行
+  const wk = cur != null ? ('第 <b>' + cur + '</b> 周 周' + DAY_SHORT[wd]) : (w < 1 ? '学期还未开始' : '学期已结束');
+  let sub = '<span class="tb-wk">' + wk + '</span>';
   if (cur != null && S.view.week !== cur) {
-    $('#tbSub').innerHTML += ' <span style="color:var(--sub2)">（正在看第 ' + S.view.week + ' 周）</span>';
+    sub += '<span class="tb-cur">（正在看第 ' + S.view.week + ' 周）</span>';
   } else if (cur == null) {
-    $('#tbSub').innerHTML += ' <span style="color:var(--sub2)">（正在看第 ' + S.view.week + ' 周）</span>';
+    sub += '<span class="tb-cur">（正在看第 ' + S.view.week + ' 周）</span>';
   }
+  $('#tbSub').innerHTML = sub;
   const nm = $('#tbTblName');
   if (nm) nm.textContent = activeTable().name;
 }
@@ -1505,10 +1779,13 @@ function renderGrid() {
         const left = w * i;
         const qr = splitRoom(c.room);
         // 先把三个字段都渲染出来（空的话后面会隐藏），字号与行数在第二遍按块实测后写入
-        h += '<div class="cc' + (span > 1 ? ' spanx' : '') + '" data-id="' + c.id + '" style="top:' + top + 'px;height:' + height + 'px;width:calc(' + w + '% - 4px);left:calc(' + left + '% + 2px);--c:' + (c.color || '#0b8f86') + '">' +
+        const ctm = courseTime(c);
+        const own = (ctm.start && ctm.start !== periodTimeOf(c.s, 'start')) || (ctm.end && ctm.end !== periodTimeOf(c.e, 'end'));
+        h += '<div class="cc qj-stagger-in' + (span > 1 ? ' spanx' : '') + (own ? ' owntime' : '') + '" data-id="' + c.id + '" style="--i:' + (d * 10 + idx) + ';top:' + top + 'px;height:' + height + 'px;width:calc(' + w + '% - 4px);left:calc(' + left + '% + 2px);--c:' + (c.color || '#0b8f86') + '">' +
           '<div class="nm">' + esc(c.name) + '</div>' +
           '<div class="rm"><span class="rc">' + esc(qr.code) + '</span><span class="rn">' + esc(qr.name) + '</span></div>' +
           '<div class="tc">' + esc(c.teacher || '') + '</div>' +
+          '<div class="tm">' + (own && ctm.start && ctm.end ? esc(ctm.start + '-' + ctm.end) : '') + '</div>' +
           '</div>';
       });
     });
@@ -1526,7 +1803,10 @@ function renderGrid() {
   boxes.forEach(b => {
     if (!b.c) return;
     b.qr = splitRoom(b.c.room);
-    b.pl = planBlock(b.h, b.w, b.c.name, b.qr, b.c.teacher);
+    const ct = courseTime(b.c);
+    const own = (ct.start && ct.start !== periodTimeOf(b.c.s, 'start')) || (ct.end && ct.end !== periodTimeOf(b.c.e, 'end'));
+    b.tm = (own && ct.start && ct.end) ? (ct.start + '-' + ct.end) : '';
+    b.pl = planBlock(b.h, b.w, b.c.name, b.qr, b.c.teacher, b.tm);
   });
   boxes.forEach(b => {
     if (!b.c) return;
@@ -1544,7 +1824,8 @@ const SVG = {
   clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
   user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 21c0-4.2 3.4-6.5 7.5-6.5s7.5 2.3 7.5 6.5"/></svg>',
   room: '<svg viewBox="0 0 24 24"><path d="M12 21s7-6.3 7-11a7 7 0 1 0-14 0c0 4.7 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>',
-  cnt: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>'
+  cnt: '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  wifi: '<svg viewBox="0 0 24 24"><path d="M2.5 8.5a15 15 0 0 1 19 0M5.5 12a10.5 10.5 0 0 1 13 0M8.5 15.5a6 6 0 0 1 7 0"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg>'
 };
 function openDetail(id) {
   const c = S.courses.find(x => x.id === id);
@@ -1553,7 +1834,8 @@ function openDetail(id) {
   $('#sdTitle').textContent = c.name;
   let h = '';
   h += '<div class="dr i-cal">' + SVG.cal + '<div class="dv">' + esc(weeksText(c.weeks)) + (c.weeks && c.weeks.length ? '<small>共 ' + c.weeks.length + ' 周上课</small>' : '') + '</div></div>';
-  h += '<div class="dr i-clock">' + SVG.clock + '<div class="dv">第 ' + c.s + ' - ' + c.e + ' 节<small>周' + DAY_SHORT[c.day] + '　' + periodsBetween(c.s, c.e) + '　共 ' + (c.e - c.s + 1) + ' 节</small></div></div>';
+  const ctm = courseTime(c);
+  h += '<div class="dr i-clock">' + SVG.clock + '<div class="dv">第 ' + c.s + ' - ' + c.e + ' 节<small>周' + DAY_SHORT[c.day] + '　' + (ctm.start && ctm.end ? ctm.start + ' - ' + ctm.end : periodsBetween(c.s, c.e)) + '　共 ' + (c.e - c.s + 1) + ' 节</small></div></div>';
   h += '<div class="dr i-user">' + SVG.user + '<div class="dv">' + esc(c.teacher || '未填写') + '</div></div>';
   h += '<div class="dr i-room">' + SVG.room + '<div class="dv">' + esc(c.room || '未填写') + '</div></div>';
   if (c.note) h += '<div class="dr i-cnt">' + SVG.cnt + '<div class="dv">' + esc(c.note) + '</div></div>';
@@ -1570,15 +1852,16 @@ function openImport() {
   $('#siTitle').textContent = '导入课程表';
   const canZw = isNative();
   $('#siBody').innerHTML =
-    '<div class="muted" style="padding:6px 0 14px">选择学校教务系统导出的课程表文件（支持 .xlsx / .xls / .csv）。<br>会自动识别格式、解析周次与节次，不需要手工整理。</div>' +
-    '<button class="btn" id="siPick">选择文件</button>' +
     (canZw
-      ? '<button class="btn" id="siUni" style="margin-top:8px">从教务系统导入</button>' +
-        '<div class="hint" style="margin:6px 0 0">在应用内打开教务系统，登录后按提示操作，应用会自动读取课表，不用先导出文件。内置两百余所高校的教务系统适配（含本校），列表里没有的学校也能自行选择系统类型并填写网址。不保存账号密码，每次都需要你手动登录。</div>'
+      ? '<div class="muted" style="padding:6px 0 6px"><b>推荐</b>：直接从学校教务系统读取，不用先导出文件。</div>' +
+        '<button class="btn" id="siUni">从教务系统导入</button>' +
+        '<div class="hint" style="margin:6px 0 14px">在应用内打开教务系统，你自己登录、自己打开课表页，再点「执行导入」把课表读回来。内置一千四百余所高校的教务系统入口，其中两百余所有针对该校页面的专用适配，其余按教务系统类型走通用适配；列表里没有的学校也能自行选择类型并填写网址。不保存账号密码，每次都需要你手动登录。<br><b>多数学校要求先连上校园网</b>才能打开教务系统。</div>'
       : '') +
+    '<div class="muted" style="padding:6px 0 6px">' + (canZw ? '<b>备选</b>：' : '') + '先在教学系统导出 Excel，再回到这里选择文件（支持 .xlsx / .xls / .csv），会自动识别格式、解析周次与节次，不需要手工整理。</div>' +
+    '<button class="btn' + (canZw ? ' sec' : '') + '" id="siPick">选择 Excel 文件</button>' +
     '<button class="btn sec" id="siTut" style="margin-top:8px">查看导入教程</button>' +
     '<button class="btn sec" id="siTpl" style="margin-top:8px">下载导入模板（.xlsx）</button>' +
-    '<div class="hint" style="margin-top:14px">已支持：<br>① 大节网格表（行=第X大节，列=星期一～日）<br>② 通用明细表（每行一门课）<br>③ 通用网格表（行=节次，列=星期）</div>';
+    '<div class="hint" style="margin-top:14px">Excel 支持三种表样：<br>① 大节网格表（行=第X大节，列=星期一～日）<br>② 通用明细表（每行一门课）<br>③ 通用网格表（行=节次，列=星期）</div>';
   showSheet('#sheetImport');
   $('#siPick').onclick = () => $('#fileXlsx').click();
   if (canZw && $('#siUni')) $('#siUni').onclick = openUniImport;
@@ -1595,34 +1878,46 @@ function renderTutorial() {
   const tab = TUT_TAB || (isNative() ? 'zw' : 'file');
 
   const zwBody =
-    '<p class="tut-lead">在应用内直接打开学校教务系统，登录后把课表读回来 —— 不用自己导出文件。</p>' +
-    step(1, '连接校园网',
-      '多数学校的教务系统只在校园网内可以访问，请先连上学校的 Wi‑Fi 或接入校园网；用手机流量可能打不开。') +
-    step(2, '在列表里找到自己的学校',
-      '返回导入页面点「<b>从教务系统导入</b>」，按类别找到自己的学校，也可以直接搜索校名。' +
+    '<p class="tut-lead">在应用内直接打开学校教务系统，自己登录、自己打开课表页，再由你亲手点「执行导入」把课表读回来 —— 不用自己导出文件。</p>' +
+    '<div class="tut-net">' +
+      '<div class="tn-h">' + SVG.wifi + '先确认网络能打开教务系统</div>' +
+      '<div class="tn-tx">绝大多数学校的教务系统<b>只在校园网内可以访问</b>：先连上学校的 Wi‑Fi，或通过学校的 VPN / 校外访问入口接入校园网，再用手机流量去打开通常会被拒绝或一直转圈。</div>' +
+      '<div class="tn-tx">如果打开教务系统时白屏、报 403、提示「非校内网」或连接超时，基本就是网络没接进去，和本应用无关。可以先用手机浏览器试试同一个网址：浏览器也打不开，就说明需要先连校园网。</div>' +
+      '<div class="tn-tip">少数学校开放了校外访问（教务系统本身可从公网打开，或已接入统一身份认证的门户）。这类学校（学校列表里会标注）不需要连校园网，直接登录即可。</div>' +
+    '</div>' +
+    step(1, '在列表里找到自己的学校',
+      '点「<b>从教务系统导入</b>」，按类别找到自己的学校，也可以直接搜索校名。' +
       '<div class="tut-tip">列表里没有的学校，选最下面的「<b>其他学校</b>」，选择教务系统类型并填写贵校教务网址，再点「打开教务系统」。</div>') +
-    step(3, '登录教务系统',
+    step(2, '登录教务系统',
       '点一下学校名，应用内会打开该校教务系统的登录页。用学号与统一身份认证密码登录。' +
       '<div class="tut-tip">账号密码只在教务系统页面里输入，<b>本应用不读取、不保存、不上传</b>，每次都需要你手动登录。</div>') +
-    step(4, '读取课表',
-      '登录成功后应用会<b>自动读取</b>课表；万一没有读到，先打开课表页面（常见名称：「学期理论课表」「我的课表」），再点窗口顶部的「<b>执行导入</b>」。') +
+    step(3, '自己打开课表页面',
+      '登录成功后，请在教务系统里找到课表查询并打开当前学期那一张，常见名称有「<b>学期理论课表</b>」「我的课表」「课表查询」。' +
+      '<div class="tut-tip">这一步需要你自己操作：应用不会替你去点教务系统里的任何按钮，也不会在后台自动抓取。</div>') +
+    step(4, '亲手点「执行导入」',
+      '课表在页面上显示出来之后，点窗口顶部的「<b>执行导入</b>」，应用才会读取当前这张课表。' +
+      '<div class="tut-tip">如果提示读不到内容，多半是页面还没停在课表页，或者课表还没加载完 —— 回到课表页面等它显示完整，再点一次。</div>') +
     step(5, '核对并导入',
       '读到的课表会回到确认页面。核对课程、周次与节次时间，再选择覆盖、另存为新课程表或合并到当前课程表。');
 
   const fileBody =
-    '<p class="tut-lead">先在教务系统里把课表导出成 Excel 文件，再回到本应用导入。网页版与安卓版都能用。</p>' +
-    step(1, '连接校园网',
-      '多数学校的教务系统只在校园网内可以访问，请先连上学校的 Wi‑Fi 或接入校园网；用手机流量可能打不开。') +
-    step(2, '进入教务系统',
+    '<p class="tut-lead">先在教务系统里把课表导出成 Excel 文件，再回到本应用导入。网页版与安卓版都能用，属于<b>备选方式</b>。</p>' +
+    '<div class="tut-net">' +
+      '<div class="tn-h">' + SVG.wifi + '先确认网络能打开教务系统</div>' +
+      '<div class="tn-tx">导出 Excel 同样是在教务系统里操作，所以<b>同样要能打开教务系统</b>：多数学校要求先连上校园网（学校 Wi‑Fi，或 VPN / 校外访问入口），用手机流量通常打不开。</div>' +
+      '<div class="tn-tx">打不开时先用手机浏览器试试同一个网址，浏览器也打不开就是网络问题，需要先接进校园网。</div>' +
+      '<div class="tn-tip">少数学校开放了校外访问，这类学校（学校列表里会标注）不需要连校园网。</div>' +
+    '</div>' +
+    step(1, '进入教务系统',
       '在浏览器里打开你所在学校的教务系统。通常从学校官网的「智慧校园」「教务处」等入口进入，部分学校会先跳到统一身份认证页面。') +
-    step(3, '登录',
+    step(2, '登录',
       '用学号与统一身份认证密码登录。密码遗忘或首次登录，按页面上的提示处理。') +
-    step(4, '打开课表页面',
+    step(3, '打开课表页面',
       '在教务系统里找到课表查询，常见的名称有「<b>学期理论课表</b>」「我的课表」「课表查询」等；打开当前学期的那一张，确认课表已经显示出来。') +
-    step(5, '导出为 Excel',
+    step(4, '导出为 Excel',
       '在课表页面上方找到「<b>打印</b>」或「<b>导出</b>」按钮并点击，把课表保存成 Excel 文件（.xlsx 或 .xls）。' +
       '<div class="tut-tip">有的系统点「打印」会直接下载文件，并不会真的去打印。下载后到手机的「文件管理 → 下载」里能找到；如果只弹出打印预览，可在预览窗口里选「导出 / 另存为」。</div>') +
-    step(6, '回到本应用导入',
+    step(5, '回到本应用导入',
       '返回导入页面点「选择文件」，选中刚下载的文件即可。导入时会让你核对解析结果，再选择覆盖、另存为新课程表或合并到当前课程表。');
 
   $('#tutBody').innerHTML =
@@ -1635,6 +1930,131 @@ function renderTutorial() {
   $$('#tutTabs .sg').forEach(b => {
     b.onclick = () => { TUT_TAB = b.dataset.t; renderTutorial(); };
   });
+}
+
+/* ================================================================
+   首次启动的功能指引
+   进门不再直接弹「导入课表」，而是先讲清楚这个应用能干什么、数据放在哪，
+   最后一页再给两个导入入口。看完记一次 guideSeen，之后不再自动出现。
+   ================================================================ */
+let GD_PAGE = 0;
+const GD_PAGES = [
+  {
+    t: '欢迎使用',
+    h: '把教务系统的课表，变成一张能随时翻的手机课表',
+    body: c =>
+      '<p class="gdtx">课表从学校教务系统读进来之后，可以按周翻看、按天看日程、按课程查教室与教师，也能一键写进手机系统日历让日历到点提醒。</p>' +
+      '<div class="gdlist">' +
+        gdItem('数据只在你手机上', '课程、日程、考试、头像全部存在本机，不上传服务器。除了读教务系统和检查更新，应用不联网。') +
+        gdItem('不保存教务密码', '登录在应用内嵌的教务系统页面里进行，账号密码不经手本应用，每次都要你自己登录。') +
+        gdItem('多份课程表', '可以给不同学期、不同身份各建一份课程表，随时切换，互不影响。') +
+      '</div>',
+    next: '看看怎么开始'
+  },
+  {
+    t: '第 1 步 · 把课表弄进来',
+    h: '两种方式，推荐第一种',
+    body: c =>
+      '<div class="gdlist">' +
+        gdItem('从教务系统导入（推荐，安卓版）',
+          '在应用内打开学校教务系统，你自己登录、自己打开「学期理论课表」，再点顶部「执行导入」。' +
+          '内置一千四百余所高校的入口，其中两百余所有针对该校页面的专用适配。' +
+          '<br><b>多数学校要先连上校园网</b>才能打开教务系统。', 'a') +
+        gdItem('导入 Excel（备选）',
+          '先在电脑或手机浏览器里登录教务系统，把课表「打印 / 导出」成 .xlsx 文件，再回到这里选文件导入。' +
+          '适合教务系统页面结构比较特殊、通用适配读不出来的学校。', 'b') +
+        gdItem('手动添加',
+          '只有零星几门课、或者只是试用，也可以直接点课表页右上角的 ＋ 一门一门加。', 'c') +
+      '</div>' +
+      '<div class="gdacts">' +
+        (isNative() ? '<button class="btn" id="gdUni">从教务系统导入</button>' : '') +
+        '<button class="btn' + (isNative() ? ' sec' : '') + '" id="gdPick">选择 Excel 文件</button>' +
+      '</div>',
+    next: '课表页怎么用'
+  },
+  {
+    t: '课表页',
+    h: '一张能左右滑的周课表',
+    body: c =>
+      '<div class="gdlist">' +
+        gdItem('翻周', '在课表区域<b>左右滑动</b>切上一周 / 下一周；点顶部的周次也可以跳到指定周。') +
+        gdItem('看课程详情', '点任意一个课程块，能看到教室、教师、周次、备注，也能直接编辑或删除。') +
+        gdItem('右上角四个按钮', '＋ 手动添加课程　⬇ 导入课表　⤒ 导出当前周为图片　⋯ 更多功能（切换课程表、一键导入日历、跳周、导出 .ics 等）。') +
+        gdItem('三种视图', '右上角视图切换里有<b>周视图</b>（默认的整周网格）、<b>日视图</b>（一天一列，课多时更清楚）和<b>学期视图</b>（一眼看完整学期的排布）。') +
+      '</div>',
+    next: '另外三个页面'
+  },
+  {
+    t: '日程 · 学习 · 我的',
+    h: '除了课表，还有三件事',
+    body: c =>
+      '<div class="gdlist">' +
+        gdItem('日程', '临时安排、社团活动、考试提醒都可以记在这里，按日期排成时间线；可以同步到手机自带的系统日历。') +
+        gdItem('学习', '把你所有课程按课程名汇总成一张表：一周上几节、累计多少学时、都在哪几天哪几节，找老师和教室很方便。') +
+        gdItem('我的', '设置学期开始日期与节次时间、换主题色与背景图、多课程表管理、导出备份、检查更新、看隐私政策。') +
+      '</div>',
+    next: '提醒与导出'
+  },
+  {
+    t: '提醒 · 导出 · 备份',
+    h: '怎么让课表在系统日历里响，以及数据怎么带走',
+    body: c =>
+      '<div class="gdlist">' +
+        gdItem('上课提醒', '本应用不常驻后台。想让每节课到点提醒，用「一键导入日历」把课表写进手机系统日历，由系统日历负责在后台弹通知——应用完全退出也会响。') +
+        gdItem('导出图片 / .ics', '「更多」里可以把当前这一周导出成图片发给同学，也可以导出 .ics 日历文件导进其他日历应用。') +
+        gdItem('备份与换机', '「我的 → 数据」里可以导出 .json 备份、从备份恢复。换手机或重装时用它迁移，别只依赖系统清理前的残留数据。') +
+        gdItem('桌面小组件', '安卓版支持把本周课表放到桌面（长按桌面 → 小组件 → 清笺课程表）。') +
+      '</div>',
+    next: '开始使用'
+  },
+  {
+    t: '可以开始了',
+    h: '随时能回到这里',
+    body: c =>
+      '<p class="gdtx">这份指引看完就不会再自动弹出。以后想再看一次，去「我的 → 设置 → 使用指引」。</p>' +
+      '<p class="gdtx">遇到问题或想提建议：<b>我的 → 关于 → 意见反馈</b>，可以直接发邮件给开发者。</p>',
+    next: '完成'
+  }
+];
+function gdItem(title, text, mark) {
+  return '<div class="gditem">' +
+    '<div class="gi-h">' + (mark ? '<span class="gi-k gi-k-' + mark + '"></span>' : '') + title + '</div>' +
+    '<div class="gi-t">' + text + '</div>' +
+  '</div>';
+}
+function renderGuide(page) {
+  const n = GD_PAGES.length;
+  GD_PAGE = Math.max(0, Math.min(n - 1, page == null ? GD_PAGE : page));
+  const p = GD_PAGES[GD_PAGE];
+  $('#gdTitle').textContent = p.t;
+  $('#gdBody').innerHTML =
+    '<div class="gd-h">' + p.h + '</div>' +
+    p.body() +
+    '<div class="gd-foot">' +
+      '<div class="gd-dots">' + GD_PAGES.map((x, i) =>
+        '<i class="' + (i === GD_PAGE ? 'on' : '') + '"></i>').join('') + '</div>' +
+      '<div class="gd-btns">' +
+        (GD_PAGE > 0 ? '<button class="btn sec" id="gdPrev">上一步</button>' : '') +
+        '<button class="btn" id="gdNext">' + p.next + '</button>' +
+      '</div>' +
+    '</div>' +
+    (GD_PAGE === 0 ? '<div class="gd-skip"><button class="btn sec" id="gdSkip">跳过，直接开始用</button></div>' : '');
+  showSheet('#sheetGuide');
+  if ($('#gdPrev')) $('#gdPrev').onclick = () => renderGuide(GD_PAGE - 1);
+  $('#gdNext').onclick = () => {
+    if (GD_PAGE >= n - 1) { closeGuide(); return; }
+    renderGuide(GD_PAGE + 1);
+  };
+  if ($('#gdSkip')) $('#gdSkip').onclick = closeGuide;
+  if ($('#gdUni')) $('#gdUni').onclick = () => { closeGuide(); openUniImport(); };
+  if ($('#gdPick')) $('#gdPick').onclick = () => { closeGuide(); openImport(); };
+}
+function openGuide() { GD_PAGE = 0; renderGuide(0); }
+function closeGuide() {
+  S.global.guideSeen = 1;
+  save();
+  hideSheet();
+  renderAll();
 }
 function handleFile(file) {
   const fr = new FileReader();
@@ -1993,21 +2413,21 @@ function ccProbe() {
   const d = document.createElement('div');
   d.className = 'cc';
   d.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;height:auto;overflow:visible;pointer-events:none';
-  d.innerHTML = '<div class="nm"></div><div class="rm"><span class="rc"></span><span class="rn"></span></div><div class="tc"></div>';
+  d.innerHTML = '<div class="nm"></div><div class="rm"><span class="rc"></span><span class="rn"></span></div><div class="tc"></div><div class="tm"></div>';
   document.body.appendChild(d);
   const q = s => d.querySelector(s);
   /* 探针上解除所有截断，量的才是「完整显示需要多高」 */
-  [q('.nm'), q('.rn'), q('.tc')].forEach(el => {
+  [q('.nm'), q('.rn'), q('.tc'), q('.tm')].forEach(el => {
     el.style.webkitLineClamp = 'none';
     el.style.display = 'block';
     el.style.overflow = 'visible';
     el.style.whiteSpace = 'normal';
     el.style.textOverflow = 'clip';
   });
-  _ccP = { box: d, nm: q('.nm'), rm: q('.rm'), rc: q('.rc'), rn: q('.rn'), tc: q('.tc') };
+  _ccP = { box: d, nm: q('.nm'), rm: q('.rm'), rc: q('.rc'), rn: q('.rn'), tc: q('.tc'), tm: q('.tm') };
   return _ccP;
 }
-function planBlock(height, width, name, qr, teacher) {
+function planBlock(height, width, name, qr, teacher, timeLabel) {
   const P = ccProbe(), box = P.box;
   const base = ccBaseSize();
   const cs = getComputedStyle(box);
@@ -2019,7 +2439,8 @@ function planBlock(height, width, name, qr, teacher) {
   P.rc.textContent = qr.code || '';
   P.rn.textContent = qr.name || '';
   P.tc.textContent = teacher || '';
-  const hasCode = !!qr.code, hasRoom = !!qr.name, hasTc = !!teacher;
+  P.tm.textContent = timeLabel || '';
+  const hasCode = !!qr.code, hasRoom = !!qr.name, hasTc = !!teacher, hasTm = !!timeLabel;
   const mt = parseFloat(getComputedStyle(P.rm).marginTop) || 0;
 
   const M = [];
@@ -2029,32 +2450,36 @@ function planBlock(height, width, name, qr, teacher) {
     const rcH = hasCode ? P.rc.getBoundingClientRect().height : 0;
     const rnH = hasRoom ? P.rn.getBoundingClientRect().height : 0;
     const tcH = hasTc ? P.tc.getBoundingClientRect().height : 0;
+    const tmH = hasTm ? P.tm.getBoundingClientRect().height : 0;
     const nmLh = parseFloat(getComputedStyle(P.nm).lineHeight) || base * s * 1.24;
     const rnLh = parseFloat(getComputedStyle(P.rn).lineHeight) || base * s * .81 * 1.26;
     M.push({
       s: s, nmH: nmH, nmLh: nmLh, nmLines: Math.max(1, Math.round(nmH / nmLh)),
-      rcH: rcH, rnH: rnH, rnLh: rnLh, rnLines: hasRoom ? Math.max(1, Math.round(rnH / rnLh)) : 0, tcH: tcH
+      rcH: rcH, rnH: rnH, rnLh: rnLh, rnLines: hasRoom ? Math.max(1, Math.round(rnH / rnLh)) : 0, tcH: tcH, tmH: tmH
     });
   }
 
-  // 从大字号往小试：能完整放下「课程名 + 上课地点」就用这一档；教师放得下才顺带显示
+  // 从大字号往小试：能完整放下「课程名 + 上课地点」就用这一档；教师和时间放得下才顺带显示
   // 约定：nm/rn = 0 表示不限行数（-1 同理），rn = 0 且 rc = false 时整块隐藏 .rm
   for (let i = 0; i < M.length; i++) {
     const m = M[i];
     const core = m.nmH + ((hasCode || hasRoom) ? mt + m.rcH + m.rnH : 0);
     if (core <= avail) {
       return { base: base, s: m.s, nm: 0, rc: hasCode, rn: hasRoom ? -1 : 0,
-        tc: hasTc && core + (hasTc ? m.tcH : 0) <= avail };
+        tc: hasTc && core + (hasTc ? m.tcH : 0) <= avail,
+        /* 自定义时间排最后一位：连教师都放不下时先舍时间，放得下教师才考虑它 */
+        tm: hasTm && core + (hasTc ? m.tcH : 0) + m.tmH <= avail };
     }
   }
 
   // 最小字号都放不下：按优先级逐项削减
   const m = M[M.length - 1];
-  const p = { base: base, s: m.s, nm: m.nmLines, rc: hasCode, rn: m.rnLines, tc: hasTc };
+  const p = { base: base, s: m.s, nm: m.nmLines, rc: hasCode, rn: m.rnLines, tc: hasTc, tm: hasTm };
   const cost = () => p.nm * m.nmLh +
     ((p.rc || p.rn > 0) ? mt + (p.rc ? m.rcH : 0) + p.rn * m.rnLh : 0) +
-    (p.tc ? m.tcH : 0);
+    (p.tc ? m.tcH : 0) + (p.tm ? m.tmH : 0);
   const cuts = [
+    () => { p.tm = false; },
     () => { p.tc = false; },
     () => { if (p.rn > 1) p.rn = 1; },
     () => { p.rn = 0; },
@@ -2069,7 +2494,7 @@ function planBlock(height, width, name, qr, teacher) {
 function applyBlockPlan(el, pl, qr, teacher) {
   el.style.fontSize = ((pl.base || CC_BASE) * pl.s) + 'px';
   const nm = el.querySelector('.nm'), rm = el.querySelector('.rm'), rc = el.querySelector('.rc'),
-    rn = el.querySelector('.rn'), tc = el.querySelector('.tc');
+    rn = el.querySelector('.rn'), tc = el.querySelector('.tc'), tm = el.querySelector('.tm');
   if (nm) { nm.style.webkitLineClamp = pl.nm > 0 ? pl.nm : 'none'; }
   if (rm) rm.style.display = (pl.rc || pl.rn !== 0) ? '' : 'none';
   if (rc) rc.style.display = pl.rc ? '' : 'none';
@@ -2078,6 +2503,7 @@ function applyBlockPlan(el, pl, qr, teacher) {
     rn.style.webkitLineClamp = pl.rn > 0 ? pl.rn : 'none';
   }
   if (tc) tc.style.display = (pl.tc && teacher) ? '' : 'none';
+  if (tm) tm.style.display = pl.tm ? '' : 'none';
 }
 
 /* ---- 解析：通用网格（行=节次，列=星期） ---- */
@@ -2478,7 +2904,7 @@ function renderToday() {
     // 当天的课程与日程合并成一条时间线，按开始时间排序
     const items = [];
     S.courses.filter(c => c.day === i + 1 && isActive(c, week)).forEach(c => {
-      items.push({ k: 'c', at: toMin(periodTimeOf(c.s, 'start')), c: c });
+      items.push({ k: 'c', at: toMin(courseTime(c).start), c: c });
     });
     (S.events || []).filter(e => e.date === dstr).forEach(e => {
       items.push({ k: 'e', at: toMin(e.start), e: e });
@@ -2486,7 +2912,7 @@ function renderToday() {
     items.sort((a, b) => (a.at == null ? 1e9 : a.at) - (b.at == null ? 1e9 : b.at));
     const isToday = dstr === ymd(new Date());
     h += '<div style="margin-bottom:16px">' +
-      '<div style="font-size:13.5px;font-weight:700;margin-bottom:8px;color:' + (isToday ? 'var(--accent)' : 'var(--text)') + '">' +
+      '<div class="qj-dayhd" style="color:' + (isToday ? 'var(--accent)' : 'var(--text)') + '">' +
       WEEK_CN[i + 1] + '　' + (d.getMonth() + 1) + '月' + d.getDate() + '日' + (isToday ? '　·　今天' : '') +
       '</div>';
     if (!items.length) {
@@ -2494,12 +2920,13 @@ function renderToday() {
       continue;
     }
     h += '<div class="tl">';
-    items.forEach(it => {
+    items.forEach((it, ti) => {
       const col = (it.k === 'c' ? it.c.color : it.e.color) || '#0b8f86';
       if (it.k === 'c') {
         const c = it.c;
-        h += '<div class="tl-item">' +
-          '<div class="tl-time"><b>' + periodTimeOf(c.s, 'start') + '</b>' + periodTimeOf(c.e, 'end') + '</div>' +
+        const ctm = courseTime(c);
+        h += '<div class="tl-item qj-stagger" style="--i:' + ti + '">' +
+          '<div class="tl-time"><b>' + ctm.start + '</b>' + ctm.end + '</div>' +
           '<div class="tl-dot" style="background:' + col + '"></div>' +
           '<div class="tl-card" style="border-left-color:' + col + '" data-cid="' + c.id + '">' +
             '<div class="n">' + esc(c.name) + '</div>' +
@@ -2507,7 +2934,7 @@ function renderToday() {
           '</div></div>';
       } else {
         const e = it.e;
-        h += '<div class="tl-item">' +
+        h += '<div class="tl-item qj-stagger" style="--i:' + ti + '">' +
           '<div class="tl-time"><b>' + esc(e.start) + '</b>' + esc(e.end) + '</div>' +
           '<div class="tl-dot" style="background:' + col + '"></div>' +
           '<div class="tl-card ev" style="border-left-color:' + col + '" data-eid="' + e.id + '">' +
@@ -2734,7 +3161,7 @@ async function syncCoursesToCal(remindMinutes) {
     toast('网页版无法写入系统日历。可以用「导出为日历（.ics）」生成文件导入手机日历。', 4200);
     return;
   }
-  if (!t.courses.length) { toast('当前课程表还没有课程，先导入 Excel 或手动添加'); return; }
+  if (!t.courses.length) { toast('当前课程表还没有课程，先从教务系统导入、导入 Excel 或手动添加'); return; }
 
   // 收集所有要写的事件，先生成清单（内存里算好，不中途插错）
   const plan = [];   // {uid, name, begin, end, location, description, remind}
@@ -2858,11 +3285,18 @@ function renderCourseList() {
   let arr = Array.from(byName.entries());
   if (q) arr = arr.filter(([n, list]) => (n + list.map(c => c.teacher + c.room).join('')).toLowerCase().indexOf(q) >= 0);
   if (!arr.length) {
-    $('#courseList').innerHTML = '<div class="empty">' + (S.courses.length ? '没有匹配的课程' : '还没有课程\n点右上角 ＋ 添加，或点 ⬇ 导入 Excel') + '</div>';
+    if (S.courses.length) {
+      $('#courseList').innerHTML = '<div class="empty">没有匹配的课程\n换个关键词试试</div>';
+    } else {
+      $('#courseList').innerHTML =
+        '<div class="empty">还没有课程\n' +
+        (isNative() ? '从教务系统导入最快：课表页右上角 ⬇ → 从教务系统导入' : '课表页右上角 ⬇ 可以导入 Excel 文件') +
+        '\n也可以点右上角 ＋ 手动添加一门</div>';
+    }
     return;
   }
   arr.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
-  $('#courseList').innerHTML = arr.map(([name, list]) => {
+  $('#courseList').innerHTML = arr.map(([name, list], ri) => {
     const teacher = Array.from(new Set(list.map(c => c.teacher).filter(Boolean))).join('、');
     const rooms = Array.from(new Set(list.map(c => c.room).filter(Boolean)));
     const weeksSet = new Set(); list.forEach(c => (c.weeks || []).forEach(w => weeksSet.add(w)));
@@ -2870,7 +3304,7 @@ function renderCourseList() {
     const perWeek = Math.max.apply(null, list.map(c => c.e - c.s + 1));
     const hours = list.reduce((a, c) => a + (c.e - c.s + 1) * ((c.weeks && c.weeks.length) ? c.weeks.length : (S.settings.totalWeeks || 16)), 0);
     const dayTxt = Array.from(new Set(list.map(c => DAY_SHORT[c.day] + ' 第' + c.s + '-' + c.e + '节'))).join('、');
-    return '<div class="crs" data-id="' + list[0].id + '">' +
+    return '<div class="crs qj-stagger" style="--i:' + ri + '" data-id="' + list[0].id + '">' +
       '<div class="dot" style="background:' + (list[0].color || '#0b8f86') + '"></div>' +
       '<div class="info"><div class="n">' + esc(name) + '</div>' +
       '<div class="m">' + esc(teacher || '教师未填') + '<br>' + esc(rooms.slice(0, 2).join(' / ') || '教室未填') + '<br>' + esc(dayTxt) + '</div></div>' +
@@ -3323,14 +3757,15 @@ function renderAbout() {
   el.innerHTML =
     '<div class="lg">' +
       '<div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M8 3v3M16 3v3"/><path d="M7.5 13h4M7.5 16.5h8"/></svg></div>' +
-      '<div><b>清笺课程表</b><div class="v">版本 v' + APP_VERSION + '</div></div>' +
+      '<div><b>清笺课程表</b><div class="v">版本 v' + APP_VERSION + (APP_BUILD === 'test' ? '　·　测试版' : '') + '</div></div>' +
     '</div>' +
-    '<div><span class="tag">开源免费</span><span class="tag">无需注册</span><span class="tag">数据仅存本机</span></div>' +
+    '<div><span class="tag">开源免费</span><span class="tag">无需注册</span><span class="tag">数据仅存本机</span>' +
+      (APP_BUILD === 'test' ? '<span class="tag" style="color:var(--accent)">测试版</span>' : '') + '</div>' +
     '<div class="tx">' +
       '<b style="color:var(--text)">开发者：' + DEVELOPER + '</b><br>' +
       '© 2026 ' + DEVELOPER + '　保留所有权利。<br>' +
       '本软件为开源软件，允许自由使用、修改与分发，请保留本版权声明。<br>' +
-      '<b style="color:var(--text)">兼容性：</b>解析器可自动识别教务系统常见的几种课表格式（大节网格表、通用明细表、通用网格表），列名不标准时会引导你手动对应；安卓版另内置两百余所高校教务系统的直连导入适配（适配脚本取自开源社区，见下），列表外的学校也可自行选择系统类型与网址。<br>' +
+      '<b style="color:var(--text)">兼容性：</b>解析器可自动识别教务系统常见的几种课表格式（大节网格表、通用明细表、通用网格表），列名不标准时会引导你手动对应；安卓版另内置一千四百余所高校教务系统的登录入口，其中两百余所有针对该校页面结构的专用适配，其余按教务系统类型走通用适配。列表外的学校也可自行选择系统类型与填写网址。<br>' +
       '<b style="color:var(--text)">教务导入适配脚本：</b>多校导入使用的适配脚本取自开源项目「拾光课程表」的脚本仓库（MIT 许可，Copyright (c) 2025 星河欲转），按许可要求在此署名。<br>' +
       '联网说明：日常使用不联网，数据只保存在本机。只有你主动点「检查更新」查询版本、或使用「从教务系统导入」连接学校教务系统时，应用才会联网，两者都不会上传你的数据。' +
     '</div>' +
@@ -3650,7 +4085,7 @@ function buildICS() {
 }
 function exportICS() {
   const t = activeTable();
-  if (!t.courses.length && !(t.events || []).length) { toast('当前课程表还没有课程或日程，先导入 Excel 或手动添加'); return; }
+  if (!t.courses.length && !(t.events || []).length) { toast('当前课程表还没有课程或日程，先从教务系统导入、导入 Excel 或手动添加'); return; }
   const { text, events } = buildICS();
   if (!events) { toast('没有生成任何日程，请检查节次时间是否完整'); return; }
   const who = String(S.profile.nickname || t.settings.student || '我').replace(/[\\/:*?"<>|\s]/g, '') || '我';
@@ -3690,6 +4125,25 @@ function openEdit(id, preset) {
   $('#fS').innerHTML = o; $('#fE').innerHTML = o;
   $('#fS').value = base.s; $('#fE').value = base.e;
   $('#fS').onchange = updateTimeHint; $('#fE').onchange = updateTimeHint;
+  /* 这节课自己的时间：base 带了 start/end 就是「已自定义」，否则跟随节次表 */
+  const hasOwn = !!(base.start && base.end);
+  $('#fStart').value = base.start || '';
+  $('#fEnd').value = base.end || '';
+  setTimeCustom(hasOwn);
+  $('#fTimeToggle').onclick = () => {
+    const on = !$('#fTimeBox').classList.contains('on');
+    setTimeCustom(on);
+    if (on) {           // 刚打开时用节次表的默认时间填进去，省得两个空输入框对着发呆
+      const a = periodTimeOf(+$('#fS').value, 'start'), b = periodTimeOf(+$('#fE').value, 'end');
+      if (!$('#fStart').value) $('#fStart').value = a;
+      if (!$('#fEnd').value) $('#fEnd').value = b;
+      $('#fStart').focus();
+    }
+    updateTimeHint();
+  };
+  ['#fStart', '#fEnd'].forEach(s => {
+    $(s).oninput = () => { $(s).classList.remove('err'); updateTimeHint(); };
+  });
   const cur = base.color || PALETTE[0];
   $('#fPalette').innerHTML = PALETTE.map(p => '<div class="pd' + (p === cur ? ' on' : '') + '" style="background:' + p + '" data-c="' + p + '"></div>').join('');
   $$('#fPalette .pd').forEach(el => el.onclick = () => {
@@ -3697,16 +4151,69 @@ function openEdit(id, preset) {
     el.classList.add('on');
   });
   updateTimeHint();
+  /* 课程名称的校验：空 = 必填；超过 30 字提醒（会挤爆课表格子） */
+  const fbName = bindField($('#fName'), v => {
+    if (!v) return '课程名称不能为空';
+    if (v.length > 30) return '课程名称最多 30 个字';
+    return null;
+  });
+  if (fbName) fbName.clear();
+  const fbWeeks = bindField($('#fWeeks'), v => {
+    if (!v) return null;                       // 空 = 每周都上，合法
+    if (v.length > 60) return '周次写法太长';
+    return null;
+  });
+  if (fbWeeks) fbWeeks.clear();
   showSheet('#sheetEdit');
 }
+function setTimeCustom(on) {
+  $('#fTimeBox').classList.toggle('on', !!on);
+  const btn = $('#fTimeToggle');
+  btn.classList.toggle('on', !!on);
+  btn.textContent = on ? '跟随节次表' : '自定义';
+  btn.title = on ? '点一下放弃自定义，改回跟随节次表' : '点一下给这节课单独设置时间';
+  if (!on) { $('#fStart').value = ''; $('#fEnd').value = ''; }
+}
+function timeIsCustom() { return $('#fTimeBox').classList.contains('on'); }
 function updateTimeHint() {
   const s = +$('#fS').value, e = +$('#fE').value;
   const a = S.settings.periods.find(p => p.n === s), b = S.settings.periods.find(p => p.n === e);
-  $('#fTimeHint').textContent = (a && b) ? (a.start + ' - ' + b.end + '（共 ' + (e - s + 1) + ' 节）') : '';
+  const n = e - s + 1;
+  const box = $('#fTimeNote');
+  if (timeIsCustom()) {
+    const st = $('#fStart').value, en = $('#fEnd').value;
+    $('#fTimeHint').textContent = (a && b) ? ('节次表默认 ' + a.start + ' - ' + b.end + '（共 ' + n + ' 节）') : '';
+    /* 只提示不拦：有些课确实会「第 3-4 节但提前到 13:50 上」，
+       真正离谱的（结束早于开始）才在保存时按字段级校验拦下来 */
+    let msg = '';
+    if (st && en) {
+      msg = toMin(en) > toMin(st) ? ('这节课按 ' + st + ' - ' + en + ' 显示') : '结束时间要晚于开始时间';
+      if (toMin(en) <= toMin(st)) $('#fEnd').classList.add('err'); else $('#fEnd').classList.remove('err');
+    } else {
+      msg = '两个时间都填才生效；只填一个不会保存';
+      $('#fEnd').classList.remove('err');
+    }
+    box.textContent = msg;
+  } else {
+    $('#fTimeHint').textContent = (a && b) ? (a.start + ' - ' + b.end + '（共 ' + n + ' 节）') : '';
+    box.textContent = '跟随「设置 → 数据 → 节次时间」，改了那里这里一起变。';
+    $('#fEnd').classList.remove('err');
+  }
 }
 function saveEdit() {
   const name = $('#fName').value.trim();
-  if (!name) { toast('请填写课程名称'); return; }
+  /* 名称校验优先走字段级反馈（红框 + 抖动 + 红字），toast 只在没有字段可指时才用。
+     校验在「保存」这一刻做，而不是边打边卡 —— 星愿档案也是这个取舍：
+     打字过程中不做限制，只在提交时把不合规的项指出来。 */
+  const fbName = $('#fName')._fb;
+  if (!name) {
+    if (fbName) { fbName.show('课程名称不能为空'); toast('请填写课程名称'); return; }
+    toast('请填写课程名称'); return;
+  }
+  if (name.length > 30) {
+    if (fbName) { fbName.show('课程名称最多 30 个字（当前 ' + name.length + ' 个）'); toast('课程名称太长'); return; }
+    toast('课程名称太长'); return;
+  }
   // 节次钳到合法范围：下限 1，上限取「节次表最大」与「下拉覆盖到的最大节次」的较大者
   // （下拉会扩到覆盖已有越界课，编辑时不能把它又钳回去），空/非法输入回退 1
   const maxN = Math.max.apply(null, (S.settings.periods || []).map(p => p.n).concat([1]));
@@ -3718,12 +4225,33 @@ function saveEdit() {
   const day = dayEl ? +dayEl.dataset.d : 1;
   const weeks = parseWeeks($('#fWeeks').value);
   const colorEl = $('#fPalette .pd.on');
+  /* 自定义时间：两个都填且合法才算数；只填一个就当没填（免得存进去半天时间） */
+  let ownStart = '', ownEnd = '';
+  if (timeIsCustom()) {
+    const st = $('#fStart').value.trim(), en = $('#fEnd').value.trim();
+    if (st || en) {
+      if (!st || !en) {
+        $('#fEnd').classList.add('err');
+        $('#fTimeNote').textContent = '开始时间和结束时间要一起填，或者点「跟随节次表」放弃自定义';
+        toast('把开始和结束时间都填上');
+        return;
+      }
+      if (toMin(en) <= toMin(st)) {
+        $('#fEnd').classList.add('err');
+        $('#fTimeNote').textContent = '结束时间要晚于开始时间';
+        toast('结束时间要晚于开始时间');
+        return;
+      }
+      ownStart = st; ownEnd = en;
+    }
+  }
   const obj = {
     name, day, s, e, weeks,
     teacher: $('#fTeacher').value.trim(),
     room: $('#fRoom').value.trim(),
     note: $('#fNote').value.trim(),
-    color: colorEl ? colorEl.dataset.c : (S.courses.find(x => x.name === name) || {}).color || PALETTE[0]
+    color: colorEl ? colorEl.dataset.c : (S.courses.find(x => x.name === name) || {}).color || PALETTE[0],
+    start: ownStart, end: ownEnd
   };
   obj.roomShort = shortRoom(obj.room);
   if (editingId) {
@@ -3756,6 +4284,7 @@ function hideSheet() {
 }
 $('#mask').onclick = hideSheet;
 $('#siCancel').onclick = hideSheet;
+if ($('#gdCancel')) $('#gdCancel').onclick = closeGuide;
 $('#seCancel').onclick = hideSheet;
 $('#smCancel').onclick = hideSheet;
 $('#tlCancel').onclick = hideSheet;
@@ -3763,7 +4292,11 @@ $('#btnSettings').onclick = () => { renderMe(); showSheet('#sheetSettings'); };
 $('#stCancel').onclick = hideSheet;
 $('#pvCancel').onclick = hideSheet;
 /* 设置：一级列表 → 二级弹层；二级弹层的返回按钮回到它自己声明的上级 */
-$$('#sheetSettings .setlist .navrow').forEach(r => r.onclick = () => showSheet(r.dataset.go));
+$$('#sheetSettings .setlist .navrow').forEach(r => r.onclick = () => {
+  // 使用指引要每次从第一页开始，不能沿用上次翻到的位置
+  if (r.dataset.go === '#sheetGuide') { openGuide(); return; }
+  showSheet(r.dataset.go);
+});
 /* 一键导入日历：先弹窗选提醒，确认后再写系统日历 / 取消导入 */
 $('#ciCancel').onclick = hideSheet;
 $('#btnDoCalImport').onclick = async () => {
@@ -3822,23 +4355,100 @@ $('#sdDel').onclick = () => {
 /* ================================================================
    事件绑定
    ================================================================ */
+const TAB_ORDER = ['today', 'sched', 'learn', 'me'];
+function tabIndex(t) { const i = TAB_ORDER.indexOf(t); return i < 0 ? 1 : i; }
+/* 胶囊位置是连续量：--ti 可以是 1.37 这种小数，表示停在「课表」和「学习」之间。
+   点击时直接给整数目标，靠 CSS transition 滑过去；拖动时去掉 transition 直接跟手。 */
+function setGlider(i, animate) {
+  const g = $('#tabGlider'); if (!g) return;
+  $('#tabbar').classList.toggle('drag', animate === false);
+  g.style.setProperty('--ti', String(i));
+}
 function switchTab(t) {
+  const changed = S.view.tab !== t;
   S.view.tab = t;
   $$('.page').forEach(p => p.classList.remove('on'));
-  $('#pg-' + t).classList.add('on');
+  const pg = $('#pg-' + t);
+  pg.classList.add('on');
+  /* 内容整体淡入上浮：切页时给一次 280ms 的 qj-fadeUp。
+     先移除再加回来（并在下一帧才加）才能让同一个动画重播。 */
+  if (changed) {
+    pg.classList.remove('qj-stagger'); pg.style.removeProperty('--i');
+    void pg.offsetWidth;
+    pg.classList.add('qj-stagger');
+  }
   $$('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  setGlider(tabIndex(t), true);
   $('#topbar').style.display = (t === 'sched') ? '' : 'none';
   if (t === 'today') renderToday();
   if (t === 'learn') renderCourseList();
   if (t === 'me') renderMe();
 }
 $$('.tab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+setGlider(tabIndex(S.view.tab || 'sched'), true);
+
+/* ---- 底部导航拖动切换 ----
+   借鉴星愿档案 BottomNavigation：按下不切页，横移超过 8px 才进入拖拽；
+   拖动中把手指 x 映射成 0..3 的连续值，胶囊实时跟随并放大；
+   松手按最近槽位吸附，只有变化时才真正切页（避免误触发重的版渲染）。 */
+(function tabDrag() {
+  const bar = $('#tabbar'); if (!bar) return;
+  let downX = 0, downY = 0, dragging = false, startIdx = 0, curIdx = 0, w = 0, suppressClick = false;
+  bar.addEventListener('pointerdown', e => {
+    if (e.target.closest('#tabGlider')) return;
+    downX = e.clientX; downY = e.clientY;
+    dragging = false;
+    startIdx = curIdx = tabIndex(S.view.tab || 'sched');
+    w = bar.getBoundingClientRect().width;
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!downX) return;
+    const dx = e.clientX - downX, dy = e.clientY - downY;
+    if (!dragging) {
+      if (Math.abs(dx) < 8) return;
+      if (Math.abs(dx) <= Math.abs(dy)) { downX = 0; return; }  // 竖向手势直接放弃
+      dragging = true;
+      setGlider(startIdx, false);
+    }
+    /* 手指位置 → 连续槽位值：left 半格对应 -0.5，格子中心对应整数 */
+    const left = e.clientX - bar.getBoundingClientRect().left;
+    let v = left / (w / 4) - 0.5;
+    v = Math.max(0, Math.min(3, v));
+    curIdx = v;
+    setGlider(v, false);
+    e.preventDefault();
+  }, { passive: false });
+  const end = () => {
+    if (!downX) return;
+    const target = dragging ? Math.round(curIdx) : startIdx;
+    const changed = dragging && target !== startIdx;
+    downX = 0; dragging = false;
+    curIdx = target;
+    setGlider(target, true);
+    if (changed) {
+      /* 拖拽已经切过页了，抑制掉随之而来的 click，
+         否则手指停在两个 tab 之间时会被按钮自己的 onclick 再切一次 */
+      suppressClick = true;
+      setTimeout(() => { suppressClick = false; }, 400);
+      if (navigator.vibrate) { try { navigator.vibrate(8); } catch (_) { } }
+      switchTab(TAB_ORDER[target]);
+    }
+  };
+  bar.addEventListener('pointerup', end);
+  bar.addEventListener('pointercancel', end);
+  bar.addEventListener('click', e => {
+    if (!suppressClick) return;
+    suppressClick = false;
+    e.stopPropagation(); e.preventDefault();
+  }, true);
+})();
 
 $('#btnAdd').onclick = () => openEdit(null);
 $('#btnImport').onclick = openImport;
 $('#btnImport2').onclick = openImport;
+if ($('#btnImport2w')) $('#btnImport2w').onclick = openImport;
 if ($('#btnImportZw')) $('#btnImportZw').onclick = openUniImport;   // 统一入口：进来先选学校
-$('#btnExport').onclick = () => { renderMore(); showSheet('#sheetMore'); };
+$('#btnExport').onclick = () => { exportPNG(); };
 $('#btnMore').onclick = () => { renderMore(); showSheet('#sheetMore'); };
 
 function renderMore() {
@@ -4084,7 +4694,7 @@ function zwOpen() {
       原生侧在同一个 WebView 里带登录态 fetch 课表接口，回传 HTML 后
       用 parseZwGrid() 解析。这条不依赖脚本，最稳。
    ② 其他学校：走 UniImportPlugin + 适配脚本 ——
-      脚本来自拾光课程表开源社区，跑在 App 弹出的 WebView 里；App 只提供
+      脚本跑在 App 弹出的 WebView 里；App 只提供
       window.shiguangBridgePromise / shiguangBridge 两个桥对象，解析逻辑全在脚本内，
       所以新增一所学校只需换脚本，不必改应用。
 
@@ -4092,21 +4702,21 @@ function zwOpen() {
           打开课表页 → 点「执行导入」→ 插件注入桥与脚本 →
           脚本回传课程 / 开学日期 / 节次时间 → 走统一的「确认导入」面板。
    ================================================================ */
-/* 本校（武汉铁路职业技术学院）：与拾光清单里的学校一并平铺在列表中，不置顶、不额外标注；
+/* 本校（武汉铁路职业技术学院）：与清单里的学校一并平铺在列表中，不置顶、不额外标注；
    点它走早已验证的 ZwBridge 通道（登录 → 落在 /jsxsd/ → 自动抓 xskb_list.do → parseZwGrid），
    不依赖适配脚本。 */
 const UNI_HOME = {
   id: 'wru', name: '武汉铁路职业技术学院', sub: '武汉铁路职业技术学院教务系统',
   initial: 'W', cat: 'BACHELOR_AND_ASSOCIATE'
 };
-/* 教务系统类别标签（取自拾光适配器的 category 字段） */
+/* 教务系统类别标签（取自各校适配记录的 category 字段） */
 const CAT_LABEL = {
   BACHELOR_AND_ASSOCIATE: '本科 / 高职',
   POSTGRADUATE: '研究生',
   GENERAL_TOOL: '通用工具'
 };
 const catLabel = c => CAT_LABEL[c] || '';
-/* 其余学校随 APK 打包在 assets 里（脚本与网址来自拾光课程表开源社区），网页读不到 assets，
+/* 其余学校随 APK 打包在 assets 里，网页读不到 assets，
    由插件的 listSchools() 取回。 */
 let UNI_SCHOOLS = [];
 const UNI_ADAPTERS = [
@@ -4140,7 +4750,7 @@ function uniPlugin() {
   return (C && C.Plugins && C.Plugins.UniImport) || null;
 }
 
-/* 清单 + 本校：把本校按首字母插进正常位置（与拾光清单同样的排序规则），
+/* 清单 + 本校：把本校按首字母插进正常位置（同样的排序规则），
    前端看到的就只是一份普通学校列表 */
 function uniAll() {
   const arr = UNI_SCHOOLS.slice();
@@ -4630,7 +5240,10 @@ function applyNativeTheme() {
   let storable = true;
   try { localStorage.setItem('__probe', '1'); localStorage.removeItem('__probe'); } catch (e) { storable = false; }
   if (!storable && !isNative()) setTimeout(() => toast('当前打开方式无法保存数据。建议用在线链接打开，或添加到手机主屏幕后使用。', 6500), 1500);
-  if (!had) setTimeout(() => { openImport(); }, 500);
+  // 第一次打开（本机还没有任何课表数据）：先给一份完整的功能指引，
+  // 讲清这个应用能干什么、课表怎么弄进来、数据放在哪，最后一页再给导入入口。
+  // 而不是一进门就把导入课表的弹窗怼到脸上。看完记一次 guideSeen，之后不再自动出现。
+  if (!had && !S.global.guideSeen) setTimeout(() => { openGuide(); }, 500);
   window.__ready = true;                  // 启动完成的标记，供自动化测试等待
   mirrorToNative();                       // 首次运行也先落一份盘，之后随时可恢复
 })();

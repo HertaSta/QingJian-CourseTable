@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DIR = 'D:/项目归档/CourseTable';
+const DIR = path.join(__dirname, '..');
 const src = path.join(DIR, '清笺课程表.html');
 const wwwDir = path.join(DIR, 'android-app', 'www');
 const dst = path.join(wwwDir, 'index.html');

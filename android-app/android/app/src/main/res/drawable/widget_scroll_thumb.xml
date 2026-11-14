@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?><!-- 滚动条：中性灰，浅色卡和深色卡上都能看见 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#5C9AA0A8" />
+    <corners android:radius="2dp" />
+</shape>

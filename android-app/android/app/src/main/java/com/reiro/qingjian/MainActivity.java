@@ -5,6 +5,7 @@ import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 import com.reiro.qingjian.calbridge.CalBridgePlugin;
 import com.reiro.qingjian.uniimport.UniImportPlugin;
+import com.reiro.qingjian.widget.WidgetBridgePlugin;
 import com.reiro.qingjian.zwbridge.ZwBridgePlugin;
 
 public class MainActivity extends BridgeActivity {
@@ -14,6 +15,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ZwBridgePlugin.class);
         registerPlugin(CalBridgePlugin.class);
         registerPlugin(UniImportPlugin.class);
+        registerPlugin(WidgetBridgePlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
