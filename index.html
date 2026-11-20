@@ -24,8 +24,9 @@
   --grad:linear-gradient(135deg,#0b8f86 0%,#27b98b 58%,#8ed06a 100%);
   --sh-tint:20,110,95;
   --shadow:0 8px 26px rgba(var(--sh-tint),.10);
-  --blur:saturate(185%) blur(22px);
+  --blur:saturate(160%) blur(12px);
   --glass:linear-gradient(158deg,rgba(255,255,255,.76),rgba(255,255,255,.44));
+  --glass-flat:linear-gradient(158deg,rgba(255,255,255,.93),rgba(255,255,255,.82));
   --glass-brd:rgba(255,255,255,.72);
   --glass-sh:0 10px 30px rgba(var(--sh-tint),.11),inset 0 1px 0 rgba(255,255,255,.92),inset 0 -1px 0 rgba(255,255,255,.28);
   --field:rgba(255,255,255,.58);
@@ -63,6 +64,7 @@
   --sh-tint:0,0,0;
   --shadow:0 10px 28px rgba(0,0,0,.45);
   --glass:linear-gradient(158deg,rgba(42,58,55,.64),rgba(22,34,32,.46));
+  --glass-flat:linear-gradient(158deg,rgba(44,60,57,.94),rgba(24,36,34,.92));
   --glass-brd:rgba(255,255,255,.13);
   --glass-sh:0 12px 34px rgba(0,0,0,.46),inset 0 1px 0 rgba(255,255,255,.11),inset 0 -1px 0 rgba(0,0,0,.22);
   --field:rgba(255,255,255,.07);
@@ -219,7 +221,7 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:var(--fs-body);line-height:var(--lh-para)}
 .btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border-radius:14px;background:var(--grad);color:#fff;font-size:14.5px;font-weight:700;box-shadow:0 8px 20px rgba(var(--sh-tint),.30),inset 0 1px 0 rgba(255,255,255,.4)}
 .btn:active{opacity:.9}
-.btn.sec{background:var(--field);color:var(--text);border:1px solid var(--glass-brd);box-shadow:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-weight:600}
+.btn.sec{background:var(--field);color:var(--text);border:1px solid var(--glass-brd);box-shadow:none;font-weight:600}
 .btn.dan{background:rgba(255,90,95,.14);color:var(--red);border:1px solid rgba(255,90,95,.24);box-shadow:none}
 .btn+.btn{margin-top:8px}
 .row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line2);font-size:14px}
@@ -241,7 +243,7 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .tl-dot{position:absolute;left:-9px;top:16px;width:9px;height:9px;border-radius:50%;background:var(--grad);box-shadow:0 0 0 3px rgba(var(--sh-tint),.16)}
 .tl-item::before{content:'';position:absolute;left:-5px;top:24px;bottom:-10px;width:1.5px;background:var(--line)}
 .tl-item:last-child::before{display:none}
-.tl-card{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-brd);border-left:4px solid var(--accent);border-radius:14px;padding:10px 12px;box-shadow:var(--glass-sh)}
+.tl-card{background:var(--glass-flat);border:1px solid var(--glass-brd);border-left:4px solid var(--accent);border-radius:14px;padding:10px 12px;box-shadow:var(--glass-sh)}
 .tl-card .n{font-weight:800;font-size:14.5px}
 .tl-card .m{font-size:12px;color:var(--sub);margin-top:3px;line-height:1.5}
 /* 日程：标题行右侧的「添加日程」按钮 */
@@ -259,7 +261,7 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .chips .chip{flex:1 0 calc(25% - 5px);padding:9px 4px}
 
 /* 学习 / 课程总览 */
-.crs{display:flex;gap:11px;align-items:stretch;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-brd);border-radius:14px;padding:10px 12px;margin-bottom:9px;box-shadow:var(--glass-sh)}
+.crs{display:flex;gap:11px;align-items:stretch;background:var(--glass-flat);border:1px solid var(--glass-brd);border-radius:14px;padding:10px 12px;margin-bottom:9px;box-shadow:var(--glass-sh)}
 .crs .dot{width:5px;border-radius:3px;flex:none}
 .crs .info{flex:1;min-width:0}
 .crs .info .n{font-weight:800;font-size:14.5px}
@@ -268,7 +270,7 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .crs .stat b{display:block;font-size:17px;color:var(--text);font-weight:800}
 
 /* 搜索框 */
-.search{display:flex;align-items:center;gap:8px;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--glass-brd);border-radius:14px;padding:9px 12px;box-shadow:var(--glass-sh);margin-bottom:12px}
+.search{display:flex;align-items:center;gap:8px;background:var(--glass-flat);border:1px solid var(--glass-brd);border-radius:14px;padding:9px 12px;box-shadow:var(--glass-sh);margin-bottom:12px}
 .search input{flex:1;border:none;outline:none;background:transparent}
 .search svg{width:17px;height:17px;stroke:var(--sub);fill:none;stroke-width:2}
 
@@ -298,7 +300,7 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .fgroup{padding:11px 0;border-bottom:1px solid var(--line2)}
 .fgroup:last-child{border-bottom:none}
 .flabel{font-size:12px;color:var(--sub);font-weight:700;margin-bottom:6px}
-.finput,.fselect{width:100%;padding:10px 12px;border-radius:12px;background:var(--field);border:1px solid var(--glass-brd);outline:none;font-size:14.5px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.finput,.fselect{width:100%;padding:10px 12px;border-radius:12px;background:var(--field);border:1px solid var(--glass-brd);outline:none;font-size:14.5px}
 .finput:focus,.fselect:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 /* ---- 字段级校验反馈 ----
    借鉴星愿档案 FieldFeedback：错误文案常驻在字段下方（默认 display:none），
@@ -331,7 +333,7 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .pd.on{border-color:var(--text);transform:scale(1.08)}
 
 /* 提示 */
-#toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(14px);background:rgba(10,20,20,.9);color:#fff;font-size:13.5px;padding:10px 18px;border-radius:14px;z-index:300;opacity:0;pointer-events:none;transition:all .22s;max-width:80vw;text-align:center;line-height:1.5;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.16)}
+#toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(14px);background:rgba(10,20,20,.9);color:#fff;font-size:13.5px;padding:10px 18px;border-radius:14px;z-index:300;opacity:0;pointer-events:none;transition:all .22s;max-width:80vw;text-align:center;line-height:1.5;border:1px solid rgba(255,255,255,.16)}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 [data-theme="dark"] #toast{background:rgba(240,242,248,.94);color:#12151a;border-color:rgba(255,255,255,.5)}
 
@@ -1140,7 +1142,7 @@ const WEEK_CN = ['','星期一','星期二','星期三','星期四','星期五',
 const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
-const APP_VERSION = '0.2.0';
+const APP_VERSION = '0.2.1';
 /* 正式版留空 ''；测试版填 'test'。
    测试版是独立包名（com.reiro.qingjian.test）、独立排号（v0.1.1、v0.1.2…），与正式版共存，
    也不对应 GitHub 上的任何 Release —— 所以测试版不做更新检查，
@@ -1280,11 +1282,29 @@ const KEY = 'coursetable.v1';
 const NATIVE_FILE = 'qingjian-state.json';
 let SAVED_AT = 0;
 
-function snapshot() {
+/* 背景图单独存一个键。
+   它是一张 Base64 大字符串（一两百 KB，用户选图时可能更大），
+   如果卷在主快照里，每次 save() 的 JSON.stringify 都要重新序列化一遍，
+   实测带 1.6MB 背景图时一次 save 要 25ms —— 拖一下透明度滑杆就能卡出好几帧。
+   主快照只放结构化的小数据，背景图单独写、且只在换图时才写。 */
+const BG_KEY = KEY + '.bg';
+
+function snapshot(keepBg) {
   return {
     v: 2, savedAt: Date.now(),
-    profile: S.profile, global: S.global, tables: S.tables, activeId: S.activeId
+    profile: S.profile,
+    /* keepBg 只给「落盘到安卓私有文件」用：那里是防 localStorage 被系统清掉的兜底，
+       宁可慢一点也要把背景图带上；常规 save 走下面这份，不带大字段。 */
+    global: keepBg ? S.global : Object.assign({}, S.global, { bgImage: '' }),
+    tables: S.tables, activeId: S.activeId
   };
+}
+/* 只在背景图真的变了时调用 */
+function saveBg() {
+  try {
+    if (S.global.bgImage) localStorage.setItem(BG_KEY, S.global.bgImage);
+    else localStorage.removeItem(BG_KEY);
+  } catch (e) { /* 配额满就交给私有文件兜底 */ }
 }
 function save() {
   const snap = snapshot();
@@ -1335,8 +1355,20 @@ function load() {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return false;
-    return applySnapshot(JSON.parse(raw));
+    const ok = applySnapshot(JSON.parse(raw));
+    if (ok) restoreBg();
+    return ok;
   } catch (e) { return false; }
+}
+/* 背景图不在主快照里（见 saveBg 的注释），单独取回来 */
+function restoreBg() {
+  try {
+    const bg = localStorage.getItem(BG_KEY);
+    if (bg) { S.global.bgImage = bg; return; }
+    /* 老版本把背景图塞在主快照里，升级上来的第一份数据要搬进独立键，
+       否则下一次 save 就会把它从快照里抹掉，重启后背景图就没了 */
+    if (S.global.bgImage) localStorage.setItem(BG_KEY, S.global.bgImage);
+  } catch (e) { /* 读不到就当没有背景图 */ }
 }
 
 /* ---- 安卓私有文件（Directory.Data）：不会被系统回收 ---- */
@@ -1411,7 +1443,7 @@ async function flushNative() {
   clearTimeout(_mirT);
   try {
     await C.Plugins.Filesystem.writeFile({
-      path: NATIVE_FILE, data: b64enc(JSON.stringify(snapshot())),
+      path: NATIVE_FILE, data: b64enc(JSON.stringify(snapshot(true))),
       directory: 'DATA', recursive: true
     });
   } catch (e) { /* 磁盘满等极端情况忽略，下次写入重试 */ }
@@ -1641,13 +1673,28 @@ function assignColors() {
 /* ================================================================
    渲染：课表
    ================================================================ */
+/* 只渲染当前这一页。
+   改一门课、切一周、拖一下滑块都会调 renderAll()，原先它无差别地把
+   课表 / 日程 / 学习 / 我的四页全部重建一遍 —— 实测 22ms，其中三页
+   是用户根本看不见的。现在改成「只渲染当前页，其余页打脏标记」，
+   切到脏页时再补渲染，用户看到的内容一样新。
+
+   注意：课表页必须在「显示状态」下渲染 —— 课程块的高度要按真实列宽量，
+   页面还是 display:none 时量到的都是 0，会被当成「放不下」而全砍掉。 */
+const _pageDirty = { sched: 1, today: 1, learn: 1, me: 1 };
+const PAGE_TABS = ['sched', 'today', 'learn', 'me'];
+function renderPage(t) {
+  if (t === 'sched') { renderWeekHead(); renderGrid(); }
+  else if (t === 'today') renderToday();
+  else if (t === 'learn') renderCourseList();
+  else if (t === 'me') renderMe();
+  _pageDirty[t] = 0;
+}
 function renderAll() {
-  renderWeekHead();
-  renderGrid();
-  renderToday();
-  renderCourseList();
-  renderMe();
-  renderTopbar();
+  renderTopbar();                        // 顶栏每页都显示，而且很便宜
+  const tab = S.view.tab || 'sched';
+  renderPage(tab);
+  PAGE_TABS.forEach(t => { if (t !== tab) _pageDirty[t] = 1; });
 }
 
 function baseDate() {          // 当前视图周的周一
@@ -2377,10 +2424,16 @@ function shortRoom(r) {
    基准字号由 CSS 变量 --cc-base 决定（默认 10.5px），改它即可整体缩放。 */
 const CC_BASE = 10.5;
 const CC_SCALES = [1, .95, .9, .85, .8, .75, .7];
+/* --cc-base 是 CSS 变量，全站没有别处改它，缓存住，别每次排版都 getComputedStyle
+   （一次 getComputedStyle 就是一次强制样式计算，20 个课程块叠加就是一次掉帧） */
+let _ccBase = null;
 function ccBaseSize() {
+  if (_ccBase != null) return _ccBase;
   const v = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cc-base'));
-  return (v > 0 ? v : CC_BASE);
+  return (_ccBase = (v > 0 ? v : CC_BASE));
 }
+/* 主题/字号变了就把缓存清掉，下次重新量 */
+function ccResetCache() { _ccBase = null; _ccMetrics = null; _planCache.clear(); }
 let _ccP = null;
 function ccProbe() {
   if (_ccP) return _ccP;
@@ -2401,68 +2454,113 @@ function ccProbe() {
   _ccP = { box: d, nm: q('.nm'), rm: q('.rm'), rc: q('.rc'), rn: q('.rn'), tc: q('.tc'), tm: q('.tm') };
   return _ccP;
 }
-function planBlock(height, width, name, qr, teacher, timeLabel) {
-  const P = ccProbe(), box = P.box;
-  const base = ccBaseSize();
-  const cs = getComputedStyle(box);
+/* 探针的上下 padding 与 .rm 的上外边距都是固定像素，量一次就够 */
+let _ccMetrics = null;
+function ccMetrics() {
+  if (_ccMetrics) return _ccMetrics;
+  const P = ccProbe();
+  const cs = getComputedStyle(P.box);
   const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  const mt = parseFloat(getComputedStyle(P.rm).marginTop) || 0;
+  return (_ccMetrics = { padY, mt });
+}
+
+/* 排版结果记忆化。
+   同一门课在同一格子里反复出现（翻周、切表、重绘）时文字和宽高都没变，
+   结果必然一样 —— 直接命中缓存，一次测量都不用做。
+   键里带上全部影响排版的输入，任何一个变了就是不同的键。 */
+const _planCache = new Map();
+const PLAN_CACHE_MAX = 800;
+function planBlock(height, width, name, qr, teacher, timeLabel) {
+  const base = ccBaseSize();
+  const w = Math.max(30, width);
+  const rcCode = qr.code || '', rnName = qr.name || '';
+  const key = Math.round(height * 2) + '|' + Math.round(w) + '|' + (name || '') + '|' +
+    rcCode + '|' + rnName + '|' + (teacher || '') + '|' + (timeLabel || '') + '|' + base;
+  const hit = _planCache.get(key);
+  if (hit) return hit;
+
+  const P = ccProbe(), box = P.box;
+  const { padY, mt } = ccMetrics();
   const avail = height - padY - 1.5;                 // 留一点余量，宁可少放一行也不裁字
-  box.style.width = Math.max(30, width) + 'px';
+  box.style.width = w + 'px';
 
   P.nm.textContent = name || '';
-  P.rc.textContent = qr.code || '';
-  P.rn.textContent = qr.name || '';
+  P.rc.textContent = rcCode;
+  P.rn.textContent = rnName;
   P.tc.textContent = teacher || '';
   P.tm.textContent = timeLabel || '';
-  const hasCode = !!qr.code, hasRoom = !!qr.name, hasTc = !!teacher, hasTm = !!timeLabel;
-  const mt = parseFloat(getComputedStyle(P.rm).marginTop) || 0;
+  const hasCode = !!rcCode, hasRoom = !!rnName, hasTc = !!teacher, hasTm = !!timeLabel;
 
-  const M = [];
-  for (const s of CC_SCALES) {
+  /* 量一档字号。行高在 CSS 里是固定比例（.nm 1.24 / .rn .81em×1.26 / .tc .857em×1.2），
+     按字号直接算，不再每档调两次 getComputedStyle。 */
+  function measure(s) {
     box.style.fontSize = (base * s) + 'px';
     const nmH = P.nm.getBoundingClientRect().height;
     const rcH = hasCode ? P.rc.getBoundingClientRect().height : 0;
     const rnH = hasRoom ? P.rn.getBoundingClientRect().height : 0;
     const tcH = hasTc ? P.tc.getBoundingClientRect().height : 0;
     const tmH = hasTm ? P.tm.getBoundingClientRect().height : 0;
-    const nmLh = parseFloat(getComputedStyle(P.nm).lineHeight) || base * s * 1.24;
-    const rnLh = parseFloat(getComputedStyle(P.rn).lineHeight) || base * s * .81 * 1.26;
-    M.push({
-      s: s, nmH: nmH, nmLh: nmLh, nmLines: Math.max(1, Math.round(nmH / nmLh)),
-      rcH: rcH, rnH: rnH, rnLh: rnLh, rnLines: hasRoom ? Math.max(1, Math.round(rnH / rnLh)) : 0, tcH: tcH, tmH: tmH
-    });
+    const nmLh = base * s * 1.24;
+    const rnLh = base * s * .81 * 1.26;
+    return {
+      s, nmH, nmLh, nmLines: Math.max(1, Math.round(nmH / nmLh)),
+      rcH, rnH, rnLh, rnLines: hasRoom ? Math.max(1, Math.round(rnH / rnLh)) : 0, tcH, tmH
+    };
   }
+  const coreOf = m => m.nmH + ((hasCode || hasRoom) ? mt + m.rcH + m.rnH : 0);
+  /* 命中某一档：课程名 + 上课地点放得下，教师和时间放得下才顺带显示 */
+  const accept = m => ({
+    base: base, s: m.s, nm: 0, rc: hasCode, rn: hasRoom ? -1 : 0,
+    tc: hasTc && coreOf(m) + (hasTc ? m.tcH : 0) <= avail,
+    /* 自定义时间排最后一位：连教师都放不下时先舍时间，放得下教师才考虑它 */
+    tm: hasTm && coreOf(m) + (hasTc ? m.tcH : 0) + m.tmH <= avail
+  });
 
-  // 从大字号往小试：能完整放下「课程名 + 上课地点」就用这一档；教师和时间放得下才顺带显示
-  // 约定：nm/rn = 0 表示不限行数（-1 同理），rn = 0 且 rc = false 时整块隐藏 .rm
-  for (let i = 0; i < M.length; i++) {
-    const m = M[i];
-    const core = m.nmH + ((hasCode || hasRoom) ? mt + m.rcH + m.rnH : 0);
-    if (core <= avail) {
-      return { base: base, s: m.s, nm: 0, rc: hasCode, rn: hasRoom ? -1 : 0,
-        tc: hasTc && core + (hasTc ? m.tcH : 0) <= avail,
-        /* 自定义时间排最后一位：连教师都放不下时先舍时间，放得下教师才考虑它 */
-        tm: hasTm && core + (hasTc ? m.tcH : 0) + m.tmH <= avail };
+  let picked = null, mMin = null;
+  /* 常见情况：基准字号就放得下 —— 一次测量搞定，不再试剩下 6 档 */
+  const mFull = measure(CC_SCALES[0]);
+  if (coreOf(mFull) <= avail) picked = accept(mFull);
+  else {
+    const last = CC_SCALES.length - 1;
+    mMin = measure(CC_SCALES[last]);
+    if (coreOf(mMin) <= avail) {
+      /* 字号越小越放得下，单调的 —— 二分找「放得下的最大字号」，5 档只需再测 2~3 次 */
+      let lo = 1, hi = last - 1, best = mMin;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        const mm = measure(CC_SCALES[mid]);
+        if (coreOf(mm) <= avail) { best = mm; hi = mid - 1; } else lo = mid + 1;
+      }
+      picked = accept(best);
     }
   }
 
-  // 最小字号都放不下：按优先级逐项削减
-  const m = M[M.length - 1];
-  const p = { base: base, s: m.s, nm: m.nmLines, rc: hasCode, rn: m.rnLines, tc: hasTc, tm: hasTm };
-  const cost = () => p.nm * m.nmLh +
-    ((p.rc || p.rn > 0) ? mt + (p.rc ? m.rcH : 0) + p.rn * m.rnLh : 0) +
-    (p.tc ? m.tcH : 0) + (p.tm ? m.tmH : 0);
-  const cuts = [
-    () => { p.tm = false; },
-    () => { p.tc = false; },
-    () => { if (p.rn > 1) p.rn = 1; },
-    () => { p.rn = 0; },
-    () => { p.rc = false; },
-    () => { if (p.nm > 2) p.nm = 2; },
-    () => { p.nm = 1; }
-  ];
-  for (const cut of cuts) { if (cost() <= avail) break; cut(); }
-  return p;
+  let res;
+  if (picked) res = picked;
+  else {
+    // 最小字号都放不下：按优先级逐项削减
+    const m = mMin || measure(CC_SCALES[CC_SCALES.length - 1]);
+    const p = { base: base, s: m.s, nm: m.nmLines, rc: hasCode, rn: m.rnLines, tc: hasTc, tm: hasTm };
+    const cost = () => p.nm * m.nmLh +
+      ((p.rc || p.rn > 0) ? mt + (p.rc ? m.rcH : 0) + p.rn * m.rnLh : 0) +
+      (p.tc ? m.tcH : 0) + (p.tm ? m.tmH : 0);
+    const cuts = [
+      () => { p.tm = false; },
+      () => { p.tc = false; },
+      () => { if (p.rn > 1) p.rn = 1; },
+      () => { p.rn = 0; },
+      () => { p.rc = false; },
+      () => { if (p.nm > 2) p.nm = 2; },
+      () => { p.nm = 1; }
+    ];
+    for (const cut of cuts) { if (cost() <= avail) break; cut(); }
+    res = p;
+  }
+
+  if (_planCache.size > PLAN_CACHE_MAX) _planCache.clear();
+  _planCache.set(key, res);
+  return res;
 }
 /* 把算好的排布写回课程块（nm/rn 为 0 表示不限行数；rn = 0 且 rc = false 时隐藏整块 .rm） */
 function applyBlockPlan(el, pl, qr, teacher) {
@@ -2927,9 +3025,19 @@ function renderToday() {
       '</div>';
   }
   $('#todayList').innerHTML = h;
-  $$('#todayList .tl-card[data-cid]').forEach(el => el.addEventListener('click', () => openDetail(el.dataset.cid)));
-  $$('#todayList .tl-card[data-eid]').forEach(el => el.addEventListener('click', () => openEvent(el.dataset.eid)));
+  /* 事件委托：一页几十张卡片，逐个 addEventListener 每次重绘都要新建几十个闭包，
+     挂在一个容器上按 data-* 分派即可 */
+  if (!_todayBound) {
+    _todayBound = true;
+    $('#todayList').addEventListener('click', ev => {
+      const c = ev.target.closest('.tl-card[data-cid]');
+      if (c) { openDetail(c.dataset.cid); return; }
+      const v = ev.target.closest('.tl-card[data-eid]');
+      if (v) openEvent(v.dataset.eid);
+    });
+  }
 }
+let _todayBound = false;
 
 /* ================================================================
    日程：添加 / 编辑 / 同步到系统日历
@@ -3923,7 +4031,7 @@ function applyAvatar(url) {
 function applyBg(url) {
   if (!url) { toast('图片读取失败，请重新选择'); return; }
   S.global.bgImage = url;
-  save(); applyBackground(); renderMe();
+  saveBg(); save(); applyBackground(); renderMe();
   toast('背景已更换');
 }
 
@@ -3945,7 +4053,7 @@ $('#btnBgPick').onclick = () => chooseImage({ maxSide: 1440, quality: 0.8, tip: 
 $('#btnBgClear').onclick = () => {
   if (!S.global.bgImage) { toast('当前就是默认背景'); return; }
   S.global.bgImage = '';
-  save(); applyBackground(); renderMe(); toast('已恢复默认背景');
+  saveBg(); save(); applyBackground(); renderMe(); toast('已恢复默认背景');
 };
 $('#bgDim').oninput = function () {
   S.global.bgDim = +this.value;
@@ -4345,8 +4453,12 @@ function switchTab(t) {
   const pg = $('#pg-' + t);
   pg.classList.add('on');
   /* 内容整体淡入上浮：切页时给一次 280ms 的 qj-fadeUp。
-     先移除再加回来（并在下一帧才加）才能让同一个动画重播。 */
-  if (changed) {
+     先移除再加回来（并在下一帧才加）才能让同一个动画重播。
+     注意：如果这一页被标脏、马上就要重绘内容，就别再播一遍整页动画 ——
+     读一次 offsetWidth 等于强制整页同步布局，刚建好的几十个课程块会被全部
+     重新算一遍，实测能把一次切页从 6ms 拖到 48ms。 */
+  const dirty = _pageDirty[t];
+  if (changed && !dirty) {
     pg.classList.remove('qj-stagger'); pg.style.removeProperty('--i');
     void pg.offsetWidth;
     pg.classList.add('qj-stagger');
@@ -4354,9 +4466,8 @@ function switchTab(t) {
   $$('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   setGlider(tabIndex(t), true);
   $('#topbar').style.display = (t === 'sched') ? '' : 'none';
-  if (t === 'today') renderToday();
-  if (t === 'learn') renderCourseList();
-  if (t === 'me') renderMe();
+  /* 页面内容是懒渲染的（见 renderAll），切过去时若被标脏就补一次 */
+  if (dirty) renderPage(t);
 }
 $$('.tab').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 setGlider(tabIndex(S.view.tab || 'sched'), true);
@@ -4472,7 +4583,7 @@ $('#fileJson').onchange = function () {
         S.global = Object.assign(S.global, (d.global && typeof d.global === 'object') ? d.global : {});
         activeTable(); applyTheme();
         S.view.week = Math.max(1, nowWeek());
-        save(); renderAll();
+        saveBg(); save(); renderAll();
         toast('恢复成功：' + S.tables.length + ' 份课程表');
       } else if (d.courses) {
         // 旧版单课表备份：导入到当前课程表
@@ -5201,7 +5312,7 @@ function applyNativeTheme() {
     nativeLoad().catch(() => null),
     new Promise(r => setTimeout(() => r(null), 1500))
   ]);
-  if (nv && (nv.savedAt || 0) > SAVED_AT && applySnapshot(nv)) had = true;
+  if (nv && (nv.savedAt || 0) > SAVED_AT && applySnapshot(nv)) { had = true; saveBg(); }
   activeTable();
   if (!S.settings.termStart) S.settings.termStart = ymd(defaultTermStart());
   if (!S.profile.nickname && S.settings.student) S.profile.nickname = S.settings.student;

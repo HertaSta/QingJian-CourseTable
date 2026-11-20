@@ -64,13 +64,13 @@ public class WidgetRender {
     }
 
     /* ================================================================
-       小组件一：今天 + 明天（列表版，见下方 todayHead / todayDayRow /
-       todayEmptyRow / todayCourseRow）
+       小组件一：今天 + 明天（左右两栏，见下方 todayHead / todayPairRow /
+       todayPairEmpty / drawCell）
 
        早先这里是 twoDays()：把两天的课画成一张整图，高度一压窄就只能
        靠 drawDayColumn() 砍内容——先砍时间、再砍教室，最后只剩课名。
-       现在改成「表头位图 + ListView 行」，行高按内容定，卡片再扁也只是
-       少露几行、由桌面滚动，课名 / 时间 / 地点 / 教师任何高度都完整。
+       现在改成「表头位图 + ListView 行」，一行 = 左今天一格 + 右明天一格，
+       行高按内容定，卡片再扁也只是少露几行、由桌面滚动。
        ================================================================ */
 
     /* ================================================================
@@ -83,7 +83,7 @@ public class WidgetRender {
        跨节课程块在行边界不画圆角，上下两片拼起来就是一块连续的颜色。
        ================================================================ */
 
-    static final float WEEK_PAD = 10f, WEEK_GUT = 32f, WEEK_HEAD = 48f;
+    static final float WEEK_PAD = 10f, WEEK_GUT = 32f, WEEK_HEAD = 52f;
     /** 表体底部留白，与 widget_week.xml 里 ListView 的 paddingBottom 保持一致 */
     static final float WEEK_BOTTOM = 14f;
 
@@ -94,55 +94,104 @@ public class WidgetRender {
      */
     static float gutPx(int w, float den) {
         float dpW = w / den;
-        float g = dpW < 280 ? 25f : (dpW < 340 ? 29f : WEEK_GUT);
+        // 节次列也再收窄一点：它只放「节号 / 开始 / 结束」三个短串，
+        // 收窄 3~6dp 就能给 7 天各多腾出 1dp —— 字能大一号是划算的
+        float g = dpW < 280 ? 22f : (dpW < 340 ? 26f : WEEK_GUT);
         return dp(den, g);
     }
 
-    /** 表头位图：顶栏日期 + 星期行。高度固定 WEEK_HEAD dp。 */
-    public static Bitmap weekHead(WidgetData d, int w, float den) {
+    /**
+     * 表头右上角两个翻周按钮的尺寸与位置（px）。
+     * 表头位图里画箭头，layout 里同一位置叠两个透明可点控件——
+     * RemoteViews 没法给一张 ImageView 的局部区域单独挂点击，只能这样配合。
+     *
+     * 从 26×20dp 放大到 32×32dp：原来那对细条太难点中，手指一偏就落到表头上，
+     * 表头是「点开 App」的热区，于是变成「想翻周，结果跳进了 App」。
+     * 现在按钮面积是原来的 2 倍，箭头也更大，命中率高得多。
+     */
+    static final float WEEK_BTN = 32f, WEEK_BTN_GAP = 4f, WEEK_BTN_TOP = 4f, WEEK_BTN_END = 8f;
+
+    /** 第 i 个按钮（0=上一周, 1=下一周）的矩形 */
+    static RectF weekBtnRect(int w, float den, int i) {
+        float end = dp(den, WEEK_BTN_END);
+        float bw = dp(den, WEEK_BTN);
+        float gap = dp(den, WEEK_BTN_GAP);
+        float right = w - end - (1 - i) * (bw + gap);
+        float top = dp(den, WEEK_BTN_TOP);
+        return new RectF(right - bw, top, right, top + bw);
+    }
+
+    /** 表头位图：顶栏（周次 + 日期区间 + 翻周按钮）+ 星期行。高度固定 WEEK_HEAD dp。 */
+    public static Bitmap weekHead(WidgetData d, int w, float den, int offset) {
         if (w <= 0) return null;
         int hh = Math.round(dp(den, WEEK_HEAD));
         Bitmap bmp = Bitmap.createBitmap(w, hh, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Theme t = Theme.of(d, den);
 
-        LocalDate today = LocalDate.now();
-        int wk = d.weekNo(today);
-        LocalDate monday = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+        LocalDate monday = d.weekMonday(offset);
+        int wk = d.weekNo(monday);
         float pad = dp(den, WEEK_PAD);
         int cols = d.showWeekend ? 7 : 5;
         float gut = gutPx(w, den);
         float gx = pad + gut;
         float cw = (w - pad - gx) / cols;
 
-        Paint dateP = text(den, 12f, t.primary, true);
-        String ds = today.getMonthValue() + "/" + today.getDayOfMonth();
-        c.drawText(ds, pad, dp(den, 17), dateP);
-        Paint subP = text(den, 9f, t.tertiary, false);
-        c.drawText("周" + DAY_CN[today.getDayOfWeek().getValue() - 1],
-            pad + dateP.measureText(ds) + dp(den, 6), dp(den, 17), subP);
-
-        Paint wkP = text(den, 9f, t.accent, true);
+        // ── 顶栏左：周次 + 日期区间。右侧留给两个翻周按钮
+        float btnCy = dp(den, WEEK_BTN_TOP) + dp(den, WEEK_BTN) / 2f;
+        float textRight = weekBtnRect(w, den, 0).left - dp(den, 6);
+        Paint wkP = text(den, 12f, t.accent, true);
         String wkStr = (wk >= 1 && wk <= d.totalWeeks) ? ("第 " + wk + " 周") : "未开学";
-        c.drawText(wkStr, w - pad - wkP.measureText(wkStr), dp(den, 17), wkP);
+        c.drawText(wkStr, pad, btnCy - (wkP.ascent() + wkP.descent()) / 2f, wkP);
+
+        Paint rangeP = text(den, 9.2f, t.tertiary, false);
+        LocalDate sunday = monday.plusDays(cols - 1);
+        String range = (monday.getMonthValue() + "/" + monday.getDayOfMonth())
+            + "-" + (sunday.getMonthValue() + "/" + sunday.getDayOfMonth());
+        float rangeX = pad + wkP.measureText(wkStr) + dp(den, 7);
+        if (rangeX + rangeP.measureText(range) <= textRight) {
+            c.drawText(range, rangeX, btnCy - (rangeP.ascent() + rangeP.descent()) / 2f, rangeP);
+        }
+
+        // ── 顶栏右：上一周 / 下一周。
+        // 按钮画成「半透明底 + 1dp 描边」的实心块，边界清楚，用户一眼知道该点哪儿；
+        // 尺寸从 26×20dp 放大到 32×32dp，箭头从 13 号放大到 17 号。
+        Paint arrowP = text(den, 17f, t.secondary, true);
+        Paint arrowOn = text(den, 17f, t.accent, true);
+        Paint btnBg = fill(withAlpha(t.dark ? 0xFFFFFF : 0x000000, t.dark ? 0x1E : 0x12));
+        Paint btnLine = stroke(den, 1f, t.line);
+        String[] arrows = {"\u2039", "\u203A"};
+        for (int i = 0; i < 2; i++) {
+            RectF r = weekBtnRect(w, den, i);
+            float br = dp(den, 8);
+            c.drawRoundRect(r, br, br, btnBg);
+            c.drawRoundRect(r, br, br, btnLine);
+            // 已经是最新一周时，「下一周」用强调色提示可以往后翻
+            Paint p = (i == 1 && offset < 0) ? arrowOn : arrowP;
+            c.drawText(arrows[i],
+                r.centerX() - p.measureText(arrows[i]) / 2f,
+                r.centerY() - (p.ascent() + p.descent()) / 2f, p);
+        }
 
         Paint lineP = stroke(den, 1f, t.line);
-        c.drawLine(pad, dp(den, 23), w - pad, dp(den, 23), lineP);
+        float sep = dp(den, WEEK_BTN_TOP) + dp(den, WEEK_BTN) + dp(den, 2);
+        c.drawLine(pad, sep, w - pad, sep, lineP);
 
-        int dow = today.getDayOfWeek().getValue();
-        Paint dayP = text(den, 8.6f, t.secondary, true);
-        Paint dayOn = text(den, 8.6f, t.accent, true);
-        Paint numP = text(den, 7.6f, t.tertiary, false);
-        Paint numOn = text(den, 7.6f, t.accent, false);
+        // ── 星期行：「一 16」合成一行。原来分两行是为了塞得下，
+        // 但那样每行都只有 8dp 高、字小得看不清；合成一行反而能放大到 10.2 号。
+        int dow = LocalDate.now().getDayOfWeek().getValue();
+        Paint dayP = text(den, 10.2f, t.secondary, true);
+        Paint dayOn = text(den, 10.2f, t.accent, true);
+        float dayBase = hh - dp(den, 4f);
         for (int i = 0; i < cols; i++) {
             float cx = gx + i * cw + cw / 2f;
-            boolean isToday = (i + 1) == dow;
-            drawCentered(c, isToday ? "今" : DAY_CN[i], cx, dp(den, 35), isToday ? dayOn : dayP);
-            drawCentered(c, String.valueOf(monday.plusDays(i).getDayOfMonth()), cx, dp(den, 45),
-                isToday ? numOn : numP);
+            // 只有看的是本周时，才把今天高亮
+            boolean isToday = offset == 0 && (i + 1) == dow;
+            String s = (isToday ? "今" : DAY_CN[i]) + " " + monday.plusDays(i).getDayOfMonth();
+            drawCentered(c, s, cx, dayBase, isToday ? dayOn : dayP);
         }
         c.drawLine(pad, hh - dp(den, 0.5f), w - pad, hh - dp(den, 0.5f), lineP);
-        c.drawLine(gx - dp(den, 0.5f), dp(den, 25), gx - dp(den, 0.5f), hh, lineP);
+        c.drawLine(gx - dp(den, 0.5f), sep, gx - dp(den, 0.5f), hh, lineP);
         return bmp;
     }
 
@@ -154,30 +203,33 @@ public class WidgetRender {
      * 卡片被拉扁时宁可少露几节、让用户滚一下，也要把「几点、在哪、谁上」写全。
      */
     static float weekRowH(int h, int n, float den) {
-        float bodyH = Math.max(dp(den, 44), h - dp(den, WEEK_HEAD) - dp(den, WEEK_BOTTOM));
+        // 卡片够高（>=240dp）就把行高抬到 62dp：那时横向空间也宽，
+        // 一行能写三行课名，长课名（「数据结构与算法」）就不用被截。
+        // 代价是少露两行节次——反正已经可以滚，信息完整优先。
+        float minRow = (h >= dp(den, 240)) ? dp(den, 62) : dp(den, 52);
+        float bodyH = Math.max(minRow, h - dp(den, WEEK_HEAD) - dp(den, WEEK_BOTTOM));
         float rh = bodyH / Math.max(1, n);
-        return Math.max(dp(den, 44), Math.min(dp(den, 58), rh));
+        return Math.max(minRow, Math.min(dp(den, 76), rh));
     }
 
-    /** 表体第 index 行：一个节次的横向切片，宽度与表头一致。 */
-    public static Bitmap weekRow(WidgetData d, int w, int index, float rowH, int n, float den) {
+    /** 表体第 index 行：一个节次的横向切片，宽度与表头一致。offset 为翻周偏移（0=本周）。 */
+    public static Bitmap weekRow(WidgetData d, int w, int index, float rowH, int n, float den, int offset) {
         if (w <= 0 || rowH <= 0 || index < 0 || index >= n) return null;
         int hh = Math.round(rowH);
         Bitmap bmp = Bitmap.createBitmap(w, hh, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Theme t = Theme.of(d, den);
 
-        LocalDate today = LocalDate.now();
-        LocalDate monday = today.minusDays(today.getDayOfWeek().getValue() - 1L);
+        LocalDate monday = d.weekMonday(offset);
         float pad = dp(den, WEEK_PAD);
         int cols = d.showWeekend ? 7 : 5;
         float gut = gutPx(w, den);
         float gx = pad + gut;
         float cw = (w - pad - gx) / cols;
 
-        // ── 今天那一列淡底
-        int todayIdx = today.getDayOfWeek().getValue() - 1;
-        if (todayIdx >= 0 && todayIdx < cols) {
+        // ── 今天那一列淡底（只有看本周时才标今天）
+        int todayIdx = LocalDate.now().getDayOfWeek().getValue() - 1;
+        if (offset == 0 && todayIdx >= 0 && todayIdx < cols) {
             c.drawRect(gx + todayIdx * cw, 0, gx + (todayIdx + 1) * cw, hh, fill(t.accentSoft));
         }
 
@@ -185,25 +237,30 @@ public class WidgetRender {
         Paint lineP = stroke(den, 1f, t.line);
         c.drawLine(pad, hh - dp(den, 0.5f), w - pad, hh - dp(den, 0.5f), lineP);
 
-        // ── 左侧节次列：序号 + 开始时间（窄的时候自动缩字号，绝不越界压到课程块上）
+        // ── 左侧节次列：序号 + 开始时间 + 结束时间（窄的时候自动缩字号，绝不越界压到课程块上）
         WidgetData.Period per = (index < d.periods.size()) ? d.periods.get(index) : null;
-        Paint noP = text(den, 8.8f, t.secondary, true);
-        Paint stP = text(den, 7f, t.tertiary, false);
+        Paint noP = text(den, 9.4f, t.secondary, true);
+        Paint stP = text(den, 7.6f, t.tertiary, false);
         float gutW = gutPx(w, den);
         float gutCx = pad + gutW / 2f;
         float cy = hh / 2f;
 
         c.save();
         c.clipRect(pad, 0, pad + gutW, hh);
-        drawCentered(c, String.valueOf(per != null ? per.n : index + 1), gutCx, cy - dp(den, 1.5f), noP);
-        if (per != null && per.start != null && !per.start.isEmpty() && rowH >= dp(den, 20)) {
-            float limit = gutW - dp(den, 3);
-            float sz = 7f;
-            while (sz > 5.2f && stP.measureText(per.start) > limit) {
-                sz -= 0.3f;
-                stP.setTextSize(sz * den);
+        String noStr = String.valueOf(per != null ? per.n : index + 1);
+        String stStr = (per != null && per.start != null) ? per.start : "";
+        String enStr = (per != null && per.end != null) ? per.end : "";
+        // 三行都画得下时才画起止时间；行高不够就只留节号（宁可少一行，也不叠字）
+        boolean showTime = rowH >= dp(den, 32) && !(stStr.isEmpty() && enStr.isEmpty());
+        if (showTime) {
+            drawCentered(c, noStr, gutCx, cy - dp(den, 9f), noP);
+            drawCentered(c, stStr, gutCx, cy + dp(den, 1.5f), stP);
+            drawCentered(c, enStr, gutCx, cy + dp(den, 9.5f), stP);
+        } else {
+            drawCentered(c, noStr, gutCx, cy - dp(den, 1.5f), noP);
+            if (!stStr.isEmpty() && rowH >= dp(den, 20)) {
+                drawCentered(c, stStr, gutCx, cy + dp(den, 7.5f), stP);
             }
-            drawCentered(c, per.start, gutCx, cy + dp(den, 8.5f), stP);
         }
         c.restore();
 
@@ -213,16 +270,18 @@ public class WidgetRender {
         int p = index + 1;                       // 本行对应的节次（1 基）
         // 250dp 宽的卡片分到 7 天，每列只有 30dp 左右，7.9f 的字只能挤下两个字。
         // 列窄时把课名字号收缩到「至少放得下三个字」，下限 6.2f，再窄就交给省略号。
-        float nameSz = 7.9f;
+        // 字号从 7.9 抬到 9.2：原来那号字在 1080p 手机上基本看不清。
+        // 下限仍保留收缩（列窄时缩到 7.8），但「放得下三个字」从硬指标改成软目标，
+        // 真正的兜底交给「允许折行 + 行高加大 + 列表可滚」，不再靠省略号硬截。
+        float nameSz = 9.2f;
         float innerW0 = cw - dp(den, 7);
         Paint probe = text(den, nameSz, t.chipText, true);
-        while (nameSz > 6.2f && probe.measureText("毛泽东") > innerW0) {
+        while (nameSz > 7.8f && probe.measureText("毛泽东") > innerW0) {
             nameSz -= 0.3f;
             probe.setTextSize(nameSz * den);
         }
         Paint nameP = probe;
-        Paint roomP = text(den, 6.9f, 0xE0FFFFFF, false);
-        float lineH = dp(den, 8.8f);
+        float lineH = dp(den, 10.6f);
         float rad = dp(den, 4);
 
         for (int i = 0; i < cols; i++) {
@@ -254,30 +313,49 @@ public class WidgetRender {
                 c.clipRect(r);
                 float bx = x + dp(den, 3);
                 float innerW = cw - dp(den, 7);
-                // 行高够就先把「时间」这一行留出来，课名最多占两行；行高不够才把时间让掉。
-                // 7 天列在 250dp 宽的卡片里每列只有 30dp 左右，时间串（08:30-10:10）根本放不下，
-                // 硬塞只会被截成「08:30-10…」这种半截东西。所以：块宽够才画整串，不够就不画——
-                // 左边节次栏已经有开始时间，少这一行不丢信息，反而是更干净。
-                String tm = d.timeRange(co);
-                Paint tmP = text(den, 6.6f, 0xD8FFFFFF, false);
-                boolean tmFits = !tm.isEmpty() && tmP.measureText(tm) <= innerW;
-                float tmReserve = (rowH >= dp(den, 34) && tmFits) ? dp(den, 7.4f) : 0;
-                int maxName = Math.max(1, Math.min(2,
-                    (int) ((hgt - dp(den, 4) - tmReserve) / lineH)));
+                // 单元格按「课名 / @教室 / 教师」三行排（参考主流课表 App 的格子）：
+                // 时间已经挪到左边节次栏（开始+结束都写了），格子里不再重复，
+                // 这样省下的高度正好够单独写教师。
+                // 先扣掉「教室 + 教师」两行要占的高度，剩下的才给课名，
+                // 这样行高一旦富裕就自动多显示一行课名，而不是把地点挤掉。
+                float subReserve = dp(den, 18f);
+                int maxName = Math.max(1, Math.min(3,
+                    (int) ((hgt - dp(den, 5) - subReserve) / lineH)));
                 List<String> lines = wrapText(co.name, nameP, innerW, maxName);
                 float ty = top + dp(den, 8.5f);
                 for (String ln : lines) {
                     c.drawText(ln, bx, ty, nameP);
                     ty += lineH;
                 }
-                if (tmReserve > 0 && ty + dp(den, 1) <= top + hgt) {
-                    c.drawText(tm, bx, ty + dp(den, 1), tmP);
-                    ty += tmReserve;
+                Paint subP = text(den, 7.8f, 0xE4FFFFFF, false);
+                float subH = dp(den, 9f);
+                // 教室单独占行、前面带 @，和课名区分开。
+                // 「JXL I 602 数据金融大数据实验室」这种长名字一行放不下就折两行——
+                // 地点信息比课名更不能省，省略号截掉后半截等于没写。
+                // 顺序是「缩字号保整串 → 仍放不下才折两行」：折行会变成「@A30 / 2」这种断码，
+                // 比小一号难认得多。
+                String roomTxt = (co.room != null) ? co.room.trim() : "";
+                if (!roomTxt.isEmpty()) {
+                    String rs = "@" + roomTxt;
+                    Paint roomP = fitPaint(rs, subP, innerW, 6.4f, den);
+                    if (roomP.measureText(rs) <= innerW) {
+                        if (ty <= top + hgt - dp(den, 1f)) {
+                            c.drawText(rs, bx, ty, roomP);
+                            ty += subH;
+                        }
+                    } else {
+                        for (String ln : wrapText(rs, roomP, innerW, 2)) {
+                            if (ty > top + hgt - dp(den, 1f)) break;
+                            c.drawText(ln, bx, ty, roomP);
+                            ty += subH;
+                        }
+                    }
                 }
-                // 教室放不下时退回教师名——一块空白格子里写个教师也比什么都没有强
-                String sub = (co.room != null && !co.room.isEmpty()) ? co.room : co.teacher;
-                if (sub != null && !sub.isEmpty() && ty <= top + hgt - dp(den, 2)) {
-                    c.drawText(ellipsize(sub, roomP, innerW), bx, ty + dp(den, 1), roomP);
+                // 教师再占一行。同样先缩字号，真的放不下才省略（教室比教师更难从别处知道）
+                String tcTxt = (co.teacher != null) ? co.teacher.trim() : "";
+                if (!tcTxt.isEmpty() && ty <= top + hgt - dp(den, 1f)) {
+                    Paint tcP = fitPaint(tcTxt, subP, innerW, 6.4f, den);
+                    c.drawText(ellipsize(tcTxt, tcP, innerW), bx, ty, tcP);
                 }
                 c.restore();
             }
@@ -293,153 +371,184 @@ public class WidgetRender {
        卡片再扁也只是少露出几行，上下滚一下，课名、时间、地点、教师照样齐。
        ================================================================ */
 
-    /** 表头（日期 + 周次）固定高度，不参与滚动 */
-    static final float TODAY_HEAD = 38f;
-
+    /** 「今天与明天」两栏表头：第一行学期 + 日期/周次，第二行 今天 | 明天 */
+    static final float PAIR_HEAD = 52f;
 
     public static Bitmap todayHead(WidgetData d, int w, float den) {
         if (w <= 0) return null;
-        int hh = Math.round(dp(den, TODAY_HEAD));
+        int hh = Math.round(dp(den, PAIR_HEAD));
         Bitmap bmp = Bitmap.createBitmap(w, hh, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
         Theme t = Theme.of(d, den);
 
         LocalDate today = LocalDate.now();
         int wk = d.weekNo(today);
-        float pad = dp(den, 14);
+        float pad = dp(den, 12f);
+        float mid = w / 2f;
 
-        Paint dateP = text(den, 14f, t.primary, true);
-        String ds = today.getMonthValue() + "/" + today.getDayOfMonth();
-        float base = dp(den, 19);
-        c.drawText(ds, pad, base, dateP);
+        // ── 第一行：左学期名，右「日期 + 第几周 + 星期」
+        Paint nameP = text(den, 13.4f, t.primary, true);
+        String tn = (d.tableName == null || d.tableName.isEmpty()) ? "我的课程表" : d.tableName;
+        c.drawText(ellipsize(tn, nameP, w / 2f - pad), pad, dp(den, 18f), nameP);
 
-        Paint subP = text(den, 9.5f, t.tertiary, false);
-        c.drawText("周" + DAY_CN[today.getDayOfWeek().getValue() - 1],
-            pad + dateP.measureText(ds) + dp(den, 7), base, subP);
+        Paint metaP = text(den, 9.2f, t.tertiary, false);
+        String wkStr = (wk >= 1 && wk <= d.totalWeeks) ? ("第" + wk + "周") : "";
+        String meta = (today.getMonthValue() + "." + today.getDayOfMonth()
+            + (wkStr.isEmpty() ? "" : " " + wkStr)
+            + " 周" + DAY_CN[today.getDayOfWeek().getValue() - 1]);
+        c.drawText(meta, w - pad - metaP.measureText(meta), dp(den, 18f), metaP);
 
-        if (wk >= 1 && wk <= d.totalWeeks) {
-            Paint cp = text(den, 10.5f, t.accent, true);
-            String chip = "第 " + wk + " 周";
-            float cw = cp.measureText(chip) + dp(den, 14);
-            float chh = dp(den, 20);
-            float cx = w - pad - cw;
-            float cy = dp(den, 6);
-            c.drawRoundRect(new RectF(cx, cy, cx + cw, cy + chh), chh / 2f, chh / 2f, fill(t.accentSoft));
-            c.drawText(chip, cx + dp(den, 7),
-                cy + chh / 2f - (cp.ascent() + cp.descent()) / 2f, cp);
-        }
+        // ── 第二行：两栏标题
+        LocalDate tomorrow = today.plusDays(1);
+        Paint labL = text(den, 11.6f, t.accent, true);
+        Paint labR = text(den, 11.6f, t.secondary, true);
+        c.drawText("今天", pad, dp(den, 38f), labL);
+        c.drawText("明天", mid + pad, dp(den, 38f), labR);
 
-        c.drawLine(pad, hh - dp(den, 0.5f), w - pad, hh - dp(den, 0.5f), stroke(den, 1f, t.line));
+        Paint dateP = text(den, 9f, t.tertiary, false);
+        float x1 = pad + labL.measureText("今天") + dp(den, 6);
+        c.drawText(today.getMonthValue() + "/" + today.getDayOfMonth(), x1, dp(den, 38f), dateP);
+        float x2 = mid + pad + labR.measureText("明天") + dp(den, 6);
+        c.drawText(tomorrow.getMonthValue() + "/" + tomorrow.getDayOfMonth(), x2, dp(den, 38f), dateP);
+
+        Paint lineP = stroke(den, 1f, t.line);
+        // 中缝竖线从顶贯到底，把两栏彻底分开
+        c.drawLine(mid, dp(den, 2f), mid, hh, lineP);
+        c.drawLine(pad, hh - dp(den, 0.5f), w - pad, hh - dp(den, 0.5f), lineP);
         return bmp;
     }
 
-    /** 分组小标题行：「今天 11/15」 */
-    public static Bitmap todayDayRow(WidgetData d, String label, LocalDate date,
-                                     int w, float den, boolean isToday) {
-        if (w <= 0) return null;
-        int hh = Math.round(dp(den, 26));
-        Bitmap bmp = Bitmap.createBitmap(w, hh, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(bmp);
-        Theme t = Theme.of(d, den);
-        float pad = dp(den, 14);
+    /* ---------------- 「今天与明天」两栏格子 ---------------- */
 
-        Paint lab = text(den, 11.5f, isToday ? t.accent : t.secondary, true);
-        float base = hh / 2f - (lab.ascent() + lab.descent()) / 2f;
-        c.drawText(label, pad, base, lab);
+    private static Paint cellTimeP(float den) { return text(den, 9f, 0xEEFFFFFF, false); }
+    private static Paint cellNameP(float den) { return text(den, 11.4f, 0xFFFFFFFF, true); }
+    private static Paint cellSubP(float den) { return text(den, 9.2f, 0xE2FFFFFF, false); }
 
-        Paint dp2 = text(den, 9.5f, t.tertiary, false);
-        float x = pad + lab.measureText(label) + dp(den, 7);
-        c.drawText(date.getMonthValue() + "/" + date.getDayOfMonth(),
-            x, hh / 2f - (dp2.ascent() + dp2.descent()) / 2f, dp2);
-        return bmp;
+    /** 左右两栏的格子几何（左起、宽度）。中缝留 5dp，两侧各 8dp 内边距。 */
+    private static float[] cellBox(int w, float den, boolean left) {
+        float padX = dp(den, 8f);
+        float midGap = dp(den, 5f);
+        float mid = w / 2f;
+        if (left) return new float[] {padX, mid - padX - midGap};
+        float x = mid + midGap;
+        return new float[] {x, w - padX - x};
     }
 
-    /** 空状态行：「今天没课」 */
-    public static Bitmap todayEmptyRow(WidgetData d, String text, int w, float den) {
-        if (w <= 0) return null;
-        int hh = Math.round(dp(den, 28));
-        Bitmap bmp = Bitmap.createBitmap(w, hh, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(bmp);
-        Theme t = Theme.of(d, den);
-        Paint p = text(den, 9.5f, t.tertiary, false);
-        c.drawText(text, dp(den, 14), hh / 2f - (p.ascent() + p.descent()) / 2f, p);
-        return bmp;
+    /** 一个格子要占多高：时间 1 行 + 课名 1~2 行 + 教室 1 行 + 教师 1 行 */
+    private static float cellNeed(WidgetData d, WidgetData.Course co, float cw, float den) {
+        if (co == null) return 0;
+        float inner = cw - dp(den, 14);
+        float timeH = dp(den, 12f);
+        float nameH = dp(den, 15f);
+        float subH = dp(den, 11.5f);
+        float need = dp(den, 6f) + timeH;
+        need += wrapText(co.name, cellNameP(den), inner, 2).size() * nameH;
+        if (co.room != null && !co.room.trim().isEmpty()) need += subH;
+        if (co.teacher != null && !co.teacher.trim().isEmpty()) need += subH;
+        return need + dp(den, 6f);
     }
 
     /**
-     * 一节课程。课名最多折三行、地点与教师最多折两行，全部写完再据此定行高——
-     * 宁可这一行高一点、让列表多滚两下，也不把「在哪个教室、谁上的」丢掉。
+     * 画一格：底色是一整块课色，里面从上到下写 时间 / 课名 / @教室 / 教师。
+     * 和「本周课表」的格子保持同一套视觉——这是用户明确要求的样式。
      */
-    public static Bitmap todayCourseRow(WidgetData d, WidgetData.Course co, int w, float den) {
-        if (w <= 0 || co == null) return null;
-        Theme t = Theme.of(d, den);
+    private static void drawCell(Canvas c, WidgetData d, WidgetData.Course co,
+                                 float x, float y, float cw, float hh, float den) {
+        if (co == null || cw <= 0 || hh <= 0) return;
+        RectF r = new RectF(x, y, x + cw, y + hh);
+        c.drawRoundRect(r, dp(den, 8f), dp(den, 8f), fill(co.color));
 
-        float padX = dp(den, 14);
-        float barW = dp(den, 3.5f);
-        float gap = dp(den, 10);
-        float textX = padX + barW + gap;
-        float textW = Math.max(dp(den, 40), w - padX - textX);
+        float bx = x + dp(den, 7f);
+        float inner = cw - dp(den, 14);
+        c.save();
+        c.clipRect(r);
 
-        // 行高必须比字号大：之前写成 9.8dp 比 12.5sp 的字还小，课名和「教室 · 教师」直接叠在一起
-        float nameLineH = dp(den, 16f);
-        float metaLineH = dp(den, 12.5f);
-        float padTop = dp(den, 6.5f);
-        float padBot = dp(den, 6.5f);
-
-        Paint nameP = text(den, 12.5f, t.primary, true);
-        Paint timeP = text(den, 9f, t.secondary, false);
-        Paint metaP = text(den, 8.8f, t.tertiary, false);
-
+        float ty = y + dp(den, 6f);
+        Paint timeP = cellTimeP(den);
         String tm = d.timeRange(co);
-        float timeW = tm.isEmpty() ? 0 : (timeP.measureText(tm) + dp(den, 10));
-        List<String> names = wrapText(co.name, nameP, textW - timeW, 3);
+        if (!tm.isEmpty()) {
+            c.drawText(ellipsize(tm, timeP, inner), bx, ty - timeP.ascent(), timeP);
+        }
+        ty += dp(den, 12f);
 
-        String meta = joinMeta(co.room, co.teacher);
-        List<String> metas = meta.isEmpty()
-            ? java.util.Collections.<String>emptyList()
-            : wrapText(meta, metaP, textW, 2);
+        Paint nameP = cellNameP(den);
+        float nameH = dp(den, 15f);
+        for (String ln : wrapText(co.name, nameP, inner, 2)) {
+            if (ty - nameP.ascent() > y + hh) break;
+            c.drawText(ln, bx, ty - nameP.ascent(), nameP);
+            ty += nameH;
+        }
 
-        float nameTop = padTop;
-        float metaTop = nameTop + names.size() * nameLineH;
-        float need = metaTop + metas.size() * metaLineH + padBot;
-        int hh = Math.max(Math.round(dp(den, 34)), Math.round(need));
+        Paint subP = cellSubP(den);
+        float subH = dp(den, 11.5f);
+        String room = (co.room == null) ? "" : co.room.trim();
+        if (!room.isEmpty()) {
+            for (String ln : wrapText("@" + room, subP, inner, 2)) {
+                if (ty - subP.ascent() > y + hh - dp(den, 1f)) break;
+                c.drawText(ln, bx, ty - subP.ascent(), subP);
+                ty += subH;
+            }
+        }
+        String tc = (co.teacher == null) ? "" : co.teacher.trim();
+        if (!tc.isEmpty() && ty - subP.ascent() <= y + hh - dp(den, 1f)) {
+            c.drawText(ellipsize(tc, subP, inner), bx, ty - subP.ascent(), subP);
+        }
+        c.restore();
+    }
+
+    /**
+     * 表体一整行 = 左边今天的一节 + 右边明天的一节（任一为空则该格留白）。
+     * 这样两栏永远逐行对齐、一起滚动，比两个独立 ListView 稳当。
+     */
+    public static Bitmap todayPairRow(WidgetData d, WidgetData.Course a, WidgetData.Course b,
+                                      int w, float den) {
+        if (w <= 0 || (a == null && b == null)) return null;
+
+        float[] lb = cellBox(w, den, true);
+        float[] rb = cellBox(w, den, false);
+        float need = Math.max(cellNeed(d, a, lb[1], den), cellNeed(d, b, rb[1], den));
+        int hh = Math.round(Math.max(dp(den, 36f), need));
 
         Bitmap bmp = Bitmap.createBitmap(w, hh, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
-
-        // 左侧色条
-        float barTop = padTop;
-        float barH = Math.min(hh - padTop - padBot, dp(den, 32));
-        c.drawRoundRect(new RectF(padX, barTop, padX + barW, barTop + barH),
-            dp(den, 2), dp(den, 2), fill(co.color));
-
-        float base = nameTop - nameP.ascent();
-        for (String ln : names) {
-            c.drawText(ln, textX, base, nameP);
-            base += nameLineH;
-        }
-
-        if (!tm.isEmpty()) {
-            float opts = (nameP.getTextSize() - timeP.getTextSize()) * 0.55f;
-            c.drawText(tm, w - padX - timeP.measureText(tm),
-                nameTop - timeP.ascent() + opts, timeP);
-        }
-
-        float mbase = metaTop - metaP.ascent();
-        for (String ln : metas) {
-            c.drawText(ln, textX, mbase, metaP);
-            mbase += metaLineH;
-        }
+        float gapY = dp(den, 2f);
+        Theme t = Theme.of(d, den);
+        drawCell(c, d, a, lb[0], gapY, lb[1], hh - gapY * 2, den);
+        drawCell(c, d, b, rb[0], gapY, rb[1], hh - gapY * 2, den);
+        // 只有一天有课时，空的那一半给一句提示，否则看着像渲染漏了
+        Paint hideHint = text(den, 9f, t.tertiary, false);
+        if (a == null) halfHint(c, hideHint, lb[0], lb[1], hh, "没课啦");
+        if (b == null) halfHint(c, hideHint, rb[0], rb[1], hh, "没课啦");
         return bmp;
     }
 
-    /** 「教室 · 教师」，缺一个就只写另一个，两个都空返回空串 */
-    static String joinMeta(String room, String teacher) {
-        String a = (room == null) ? "" : room.trim();
-        String b = (teacher == null) ? "" : teacher.trim();
-        if (a.isEmpty()) return b;
-        if (b.isEmpty()) return a;
-        return a + " · " + b;
+    private static void halfHint(Canvas c, Paint p, float x, float cw, float hh, String s) {
+        c.drawText(s, x + (cw - p.measureText(s)) / 2f,
+            hh / 2f - (p.ascent() + p.descent()) / 2f, p);
+    }
+
+    /** 两边都没课时的一行：「今天没课」/「明天没课」左右各一句（带个表情，别太干） */
+    public static Bitmap todayPairEmpty(WidgetData d, int w, float den) {
+        if (w <= 0) return null;
+        int hh = Math.round(dp(den, 76f));
+        Bitmap bmp = Bitmap.createBitmap(w, hh, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        Theme t = Theme.of(d, den);
+        float[] lb = cellBox(w, den, true);
+        float[] rb = cellBox(w, den, false);
+
+        Paint faceP = text(den, 10f, t.tertiary, false);
+        Paint p = text(den, 9.4f, t.tertiary, false);
+        String face = "( ˘•ω•˘ )";
+        String l = "今天没有课啦", r = "明天没有课啦";
+
+        float y1 = hh / 2f - dp(den, 10f);
+        float y2 = hh / 2f + dp(den, 10f);
+        c.drawText(face, lb[0] + (lb[1] - faceP.measureText(face)) / 2f, y1 - faceP.ascent(), faceP);
+        c.drawText(face, rb[0] + (rb[1] - faceP.measureText(face)) / 2f, y1 - faceP.ascent(), faceP);
+        c.drawText(l, lb[0] + (lb[1] - p.measureText(l)) / 2f, y2 - p.ascent(), p);
+        c.drawText(r, rb[0] + (rb[1] - p.measureText(r)) / 2f, y2 - p.ascent(), p);
+        return bmp;
     }
 
     /** 只画一张圆角卡底，垫在 ListView 下面当背景 */
@@ -468,6 +577,22 @@ public class WidgetRender {
 
     private static void drawCentered(Canvas c, String s, float cx, float baseline, Paint p) {
         c.drawText(s, cx - p.measureText(s) / 2f, baseline, p);
+    }
+
+    /**
+     * 在 [minSz, 当前字号] 之间找「能把整串放下」的最大字号。
+     * 250dp 卡里每列只有 30dp 左右，「@A302」或三个字的教师名在 7.8 号下放不下；
+     * 这种短串一旦折行就变成「@A30 / 2」，比小一号更难认，所以宁可缩 1~2 号保住整串。
+     * 都放不下时返回 minSz，交给调用方折行或省略。
+     */
+    private static Paint fitPaint(String s, Paint base, float maxW, float minSz, float den) {
+        Paint p = new Paint(base);
+        float sz = p.getTextSize() / den;
+        while (sz > minSz && p.measureText(s) > maxW) {
+            sz -= 0.3f;
+            p.setTextSize(sz * den);
+        }
+        return p;
     }
 
     private static String ellipsize(String s, Paint p, float maxW) {

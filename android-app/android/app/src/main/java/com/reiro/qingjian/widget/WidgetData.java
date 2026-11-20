@@ -97,6 +97,24 @@ public class WidgetData {
         sp.edit().putString(KEY, obj == null ? "{}" : obj.toString()).apply();
     }
 
+    /* ---------------- 「本周课表」翻页偏移 ---------------- */
+
+    /**
+     * 每个小组件实例各自的翻页偏移（0 = 本周，1 = 下周 …）。
+     * 存在这里而不是数据快照里：翻页是「这台桌面上这块卡片」的临时状态，
+     * 不该被网页下次同步数据时冲掉。
+     */
+    private static String offsetKey(int id) { return "week_offset_" + id; }
+
+    public static int offsetOf(Context ctx, int widgetId) {
+        return ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE).getInt(offsetKey(widgetId), 0);
+    }
+
+    public static void setOffset(Context ctx, int widgetId, int offset) {
+        ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+            .edit().putInt(offsetKey(widgetId), offset).apply();
+    }
+
     /** 数据是否为空（用户还没在 App 里同步过一次） */
     public boolean isEmpty() { return courses.isEmpty(); }
 
@@ -168,6 +186,15 @@ public class WidgetData {
 
     private static LocalDate mondayOf(LocalDate d) {
         return d.minusDays(d.getDayOfWeek().getValue() - 1L);
+    }
+
+    /**
+     * 某周显示的周一：本周（今天所在周）加上 offset 周。
+     * offset=0 是本周，1 是下周，-1 是上周。小组件表头/表体共用这一份算法，
+     * 免得表头写着「下周」而格子还是本周的课。
+     */
+    public LocalDate weekMonday(int offset) {
+        return mondayOf(LocalDate.now()).plusWeeks(offset);
     }
 
     /** 某天属于第几周（与网页侧 nowWeek 同一套算法）。学期未开始时可能 <= 0。 */

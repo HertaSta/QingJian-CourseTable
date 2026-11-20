@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?><!-- 本周课表：固定表头 + 可上下滚动的节次行。
      卡底与表头都是位图；表体是 ListView，每行一个节次切片。
+     表头右上角两个透明热区是翻周按钮（箭头画在表头位图里）——
+     一张 ImageView 没法只让局部可点，只能叠两个独立控件。
+     ⚠️ 热区必须用 ImageView 而不是 View：RemoteViews 反序列化时只允许 @RemoteView
+     标注过的类，android.view.View 没有这个标注，宿主在 apply() 时会抛
+     "Class not allowed to be inflated android.view.View"，桌面就显示成「载入出现问题」。
+     有的桌面自己放宽了校验所以看起来正常，这就是「某些系统才有问题」的原因。
      注意：Android 的 AppWidget 不支持 ScrollView，可滚动只能用 ListView 这条路。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/wroot"
@@ -19,7 +25,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <!-- 表头：日期 + 星期行，固定不滚 -->
+        <!-- 表头：周次 + 星期行，固定不滚 -->
         <ImageView
             android:id="@+id/wheadH"
             android:layout_width="match_parent"
@@ -44,6 +50,38 @@
             android:scrollbarStyle="insideOverlay"
             android:scrollbarThumbVertical="@drawable/widget_scroll_thumb"
             android:scrollbars="vertical" />
+    </LinearLayout>
+
+    <!-- 翻周按钮热区。位置必须与 WidgetRender.weekBtnRect() 算出来的一致：
+         右上角内缩 8dp（WEEK_BTN_END）、上边距 4dp（WEEK_BTN_TOP），
+         两个 32dp×32dp 的方块左右并排（间距 4dp = WEEK_BTN_GAP），
+         左是「上一周」、右是「下一周」。箭头本身画在表头位图里。
+         32×32dp 是为了好点中：原来 26×20dp 太细，手指一偏就落到表头上，
+         表头是「点开 App」的热区，于是变成「想翻周，结果跳进了 App」。
+         用 ImageView（不设 src，完全透明）当热区，原因见文件头注释。 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="8dp"
+        android:descendantFocusability="blocksDescendants"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/wprev"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:contentDescription="@string/widget_prev_week"
+            android:scaleType="fitXY" />
+
+        <ImageView
+            android:id="@+id/wnext"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="4dp"
+            android:contentDescription="@string/widget_next_week"
+            android:scaleType="fitXY" />
     </LinearLayout>
 
     <!-- 还没同步过数据时的提示 -->

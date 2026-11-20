@@ -35,6 +35,7 @@ public class WidgetWeekService extends RemoteViewsService {
         private int w = 0;
         private int n = 8;
         private float rowH = 0;
+        private int offset = 0;
 
         RowFactory(Context ctx, int widgetId) {
             this.ctx = ctx;
@@ -44,11 +45,13 @@ public class WidgetWeekService extends RemoteViewsService {
         @Override
         public void onCreate() {}
 
-        /** 尺寸、数据、主题都可能变，每次绑定前重算一遍（这个回调跑在 binder 线程） */
+        /** 尺寸、数据、主题、翻周都可能变，每次绑定前重算一遍（这个回调跑在 binder 线程） */
         @Override
         public void onDataSetChanged() {
             data = WidgetData.load(ctx);
             den = WidgetUpdater.density(ctx);
+            offset = (widgetId == AppWidgetManager.INVALID_APPWIDGET_ID)
+                ? 0 : WidgetData.offsetOf(ctx, widgetId);
             int[] s = new int[] {250, 250};
             try {
                 AppWidgetManager m = AppWidgetManager.getInstance(ctx);
@@ -72,7 +75,7 @@ public class WidgetWeekService extends RemoteViewsService {
         @Override
         public RemoteViews getViewAt(int pos) {
             if (data == null || pos < 0 || pos >= n) return null;
-            Bitmap b = WidgetRender.weekRow(data, w, pos, rowH, n, den);
+            Bitmap b = WidgetRender.weekRow(data, w, pos, rowH, n, den, offset);
             if (b == null) return null;
 
             RemoteViews rv = new RemoteViews(ctx.getPackageName(), R.layout.widget_week_row);

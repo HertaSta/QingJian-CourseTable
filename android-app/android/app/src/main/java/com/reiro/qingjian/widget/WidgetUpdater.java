@@ -48,11 +48,64 @@ public class WidgetUpdater {
         return new int[] {Math.max(w, 120), Math.max(h, 70)};
     }
 
+    /**
+     * 读数据时兜一层：SharedPreferences 里的 JSON 万一写坏了（断电、存储满），
+     * load() 会抛异常。这时候宁可画一张「打开 App 同步一次」的空卡，
+     * 也不能让整个 onUpdate 崩掉 —— onUpdate 抛异常的话，桌面会一直停在
+     * 「载入出现问题」那张错误卡上，用户连点都点不开。
+     */
+    static WidgetData safeLoad(Context c) {
+        try {
+            return WidgetData.load(c);
+        } catch (Throwable t) {
+            return new WidgetData();
+        }
+    }
+
+    static float safeDensity(Context c) {
+        try {
+            return density(c);
+        } catch (Throwable t) {
+            return 2f;
+        }
+    }
+
+    static int[] safeSize(AppWidgetManager m, int id, int defW, int defH) {
+        try {
+            return sizeDp(m.getAppWidgetOptions(id), defW, defH);
+        } catch (Throwable t) {
+            return new int[] {defW, defH};
+        }
+    }
+
     /** 点小组件打开 App。两种小组件共用，用 widgetId 区分 PendingIntent，避免互相覆盖。 */
     static PendingIntent openApp(Context c, int id) {
         Intent it = new Intent(c, MainActivity.class);
         it.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         return PendingIntent.getActivity(c, id, it,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /* ---------------- 翻周 / 翻页按钮 ---------------- */
+
+    /** 「本周课表」翻一周 */
+    static final String ACTION_WEEK_STEP = "com.reiro.qingjian.widget.WEEK_STEP";
+    /** 「今天与明天」翻一周（同星期几，日期跳 7 天） */
+    static final String ACTION_DAY_STEP = "com.reiro.qingjian.widget.DAY_STEP";
+    static final String EXTRA_STEP = "step";
+
+    /**
+     * 翻页按钮的 PendingIntent。必须是 broadcast（发回 provider 自己），
+     * 不能是 activity —— 翻页只改这张卡片的显示，不该把 App 拉到前台。
+     */
+    static PendingIntent step(Context c, Class<?> cls, String action, int id, int step) {
+        Intent it = new Intent(c, cls);
+        it.setAction(action);
+        it.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id);
+        it.putExtra(EXTRA_STEP, step);
+        // requestCode 必须每个 (实例, 按钮) 唯一，否则两个箭头会共用同一份 PendingIntent
+        int rc = id * 8 + (step > 0 ? 1 : 0);
+        return PendingIntent.getBroadcast(c, rc, it,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 

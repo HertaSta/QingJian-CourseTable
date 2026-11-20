@@ -15,11 +15,12 @@ import java.util.List;
 /**
  * 「今天与明天」的表体。
  *
- * 之所以不用一张整图：卡片被拉扁时，一张图只能靠砍内容（先砍时间、再砍教室）。
- * 拆成 ListView 之后，每行按内容定高，卡片再扁也只是少露出几行，
- * 上下滚一下课名、时间、地点、教师照样都在。
+ * 布局是左右两栏：一行 = 左边今天的一节 + 右边明天的一节，两栏永远逐行对齐、
+ * 一起上下滚。之所以不用两个独立 ListView：两个列表的滚动互不联动，
+ * 手指在左栏划右边不动，看着就像坏了。
  *
- * 行只有三种：日期分组标题、空状态提示、一节课程。
+ * 之所以不用一张整图：卡片被拉扁时，一张图只能靠砍内容（先砍时间、再砍教室）。
+ * 拆成 ListView 之后，每行按内容定高，卡片再扁也只是少露出几行。
  */
 public class WidgetTodayService extends RemoteViewsService {
 
@@ -30,15 +31,10 @@ public class WidgetTodayService extends RemoteViewsService {
         return new RowFactory(getApplicationContext(), id);
     }
 
-    /** 表体的一行 */
+    /** 表体的一行：左边今天的一节（可为空）+ 右边明天的一节（可为空） */
     private static class Row {
-        static final int DAY = 0, EMPTY = 1, COURSE = 2;
-        int type;
-        String label;          // DAY 用：「今天」/「明天」
-        LocalDate date;        // DAY 用
-        boolean today;         // DAY 用：是否是今天
-        String text;           // EMPTY 用
-        WidgetData.Course course; // COURSE 用
+        WidgetData.Course left;
+        WidgetData.Course right;
     }
 
     static class RowFactory implements RemoteViewsService.RemoteViewsFactory {
@@ -50,6 +46,8 @@ public class WidgetTodayService extends RemoteViewsService {
         private WidgetData data;
         private float den = 1f;
         private int w = 1;
+        /** 两边都没课时只放一行空状态提示 */
+        private boolean emptyOnly = false;
 
         RowFactory(Context ctx, int widgetId) {
             this.ctx = ctx;
@@ -64,6 +62,7 @@ public class WidgetTodayService extends RemoteViewsService {
         @Override
         public void onDataSetChanged() {
             rows.clear();
+            emptyOnly = false;
             data = WidgetData.load(ctx);
             den = WidgetUpdater.density(ctx);
             AppWidgetManager m = AppWidgetManager.getInstance(ctx);
@@ -71,31 +70,19 @@ public class WidgetTodayService extends RemoteViewsService {
             w = Math.max(1, Math.round(s[0] * den));
 
             LocalDate today = LocalDate.now();
-            LocalDate tomorrow = today.plusDays(1);
-            addDay("今天", today, true);
-            addDay("明天", tomorrow, false);
-        }
+            List<WidgetData.Course> a = data.coursesOf(today);
+            List<WidgetData.Course> b = data.coursesOf(today.plusDays(1));
 
-        private void addDay(String label, LocalDate date, boolean isToday) {
-            Row day = new Row();
-            day.type = Row.DAY;
-            day.label = label;
-            day.date = date;
-            day.today = isToday;
-            rows.add(day);
-
-            List<WidgetData.Course> list = data.coursesOf(date);
-            if (list.isEmpty()) {
-                Row e = new Row();
-                e.type = Row.EMPTY;
-                e.text = isToday ? "今天没课" : "明天没课";
-                rows.add(e);
+            int n = Math.max(a.size(), b.size());
+            if (n == 0) {
+                emptyOnly = true;
+                rows.add(new Row());
                 return;
             }
-            for (WidgetData.Course co : list) {
+            for (int i = 0; i < n; i++) {
                 Row r = new Row();
-                r.type = Row.COURSE;
-                r.course = co;
+                r.left = i < a.size() ? a.get(i) : null;
+                r.right = i < b.size() ? b.get(i) : null;
                 rows.add(r);
             }
         }
@@ -115,15 +102,13 @@ public class WidgetTodayService extends RemoteViewsService {
             if (pos < 0 || pos >= rows.size()) return null;
             RemoteViews rv = new RemoteViews(ctx.getPackageName(), R.layout.widget_today_row);
 
-            Row r = rows.get(pos);
             android.graphics.Bitmap bmp;
             try {
-                if (r.type == Row.DAY) {
-                    bmp = WidgetRender.todayDayRow(data, r.label, r.date, w, den, r.today);
-                } else if (r.type == Row.EMPTY) {
-                    bmp = WidgetRender.todayEmptyRow(data, r.text, w, den);
+                if (emptyOnly) {
+                    bmp = WidgetRender.todayPairEmpty(data, w, den);
                 } else {
-                    bmp = WidgetRender.todayCourseRow(data, r.course, w, den);
+                    Row r = rows.get(pos);
+                    bmp = WidgetRender.todayPairRow(data, r.left, r.right, w, den);
                 }
             } catch (Throwable t) {
                 return null;
