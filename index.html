@@ -219,6 +219,10 @@ body.has-bg #schedWrap{background:linear-gradient(158deg,rgba(255,255,255,.6),rg
 .card h3{margin:0 0 10px;font-size:14px;font-weight:800}
 .muted{color:var(--sub);font-size:var(--fs-note);line-height:var(--lh-note)}
 .empty{text-align:center;color:var(--sub);padding:40px 20px;font-size:var(--fs-body);line-height:var(--lh-para)}
+/* 课表整周没有课时的浮层提示：绝对定位，不参与 #gridBody 的 flex 布局 */
+.gempty{position:absolute;left:0;right:0;top:38%;text-align:center;pointer-events:none;padding:0 24px}
+.gempty .ge-t{font-size:var(--fs-h3);font-weight:800;color:var(--sub)}
+.gempty .ge-s{font-size:var(--fs-note);line-height:var(--lh-para);color:var(--sub2);margin-top:6px;overflow-wrap:anywhere}
 .btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;border-radius:14px;background:var(--grad);color:#fff;font-size:14.5px;font-weight:700;box-shadow:0 8px 20px rgba(var(--sh-tint),.30),inset 0 1px 0 rgba(255,255,255,.4)}
 .btn:active{opacity:.9}
 .btn.sec{background:var(--field);color:var(--text);border:1px solid var(--glass-brd);box-shadow:none;font-weight:600}
@@ -1142,7 +1146,7 @@ const WEEK_CN = ['','星期一','星期二','星期三','星期四','星期五',
 const DAY_SHORT = ['','一','二','三','四','五','六','日'];
 
 /* ---------------- 常量 ---------------- */
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '1.0.1';
 /* 正式版留空 ''；测试版填 'test'。
    测试版是独立包名（com.reiro.qingjian.test）、独立排号（v0.1.1、v0.1.2…），与正式版共存，
    也不对应 GitHub 上的任何 Release —— 所以测试版不做更新检查，
@@ -1321,8 +1325,13 @@ function save() {
 function applySnapshot(d) {
   if (!d || typeof d !== 'object') return false;
   if (d.tables && d.tables.length) {
-    S.tables = d.tables;
-    S.activeId = d.activeId || d.tables[0].id;
+    /* 从本机存储读回来的东西同样要走 sanitizeTable：存储里可能被别的脚本写坏，
+       或者用户手工改过 localStorage。以前这里直接 S.tables = d.tables，
+       一条 courses 不是数组 / c.s 是字符串的脏数据就能让整周课表画不出来，
+       而「恢复备份」那条路是清洗过的 —— 两条路必须一致。 */
+    S.tables = d.tables.map(sanitizeTable).filter(Boolean);
+    if (!S.tables.length) return false;
+    S.activeId = d.activeId || S.tables[0].id;
     S.profile = Object.assign(S.profile, d.profile || {});
     S.global = Object.assign(S.global, d.global || {});
   } else if (d.courses || d.settings) {
@@ -1752,12 +1761,17 @@ function renderWeekHead() {
     if (i >= 5) cls += ' we';
     h += '<div class="' + cls + '"><div class="wd">' + DAY_SHORT[i + 1] + '</div><div class="dd">' + d.getDate() + '</div></div>';
   }
-  if (!we) h += '<div class="wh-day other"><div class="wd">六</div><div class="dd"></div></div><div class="wh-day other"><div class="wd">日</div><div class="dd"></div></div>';
+  /* 隐藏周末时表头就只画 5 列，与下面的网格保持一致。
+     以前这里又补了两个空的「六」「日」，表头变成 7 个 flex 项、网格只有 5 列，
+     日期就会和课程列整体错位。 */
   $('#weekHead').innerHTML = h;
   $('#weekHead').style.height = 'auto';
 }
 
 function renderGrid() {
+  // 上一次渲染留下的空课表提示先摘掉，否则每次重绘都会叠一层
+  const staledEmpty = $('#gridScroll .gempty');
+  if (staledEmpty) staledEmpty.remove();
   const periods = S.settings.periods || [];
   const we = S.global.showWeekend !== false;
   const nDay = we ? 7 : 5;
@@ -1772,7 +1786,9 @@ function renderGrid() {
   periods.forEach(p => {
     const s = toMin(p.start), e = toMin(p.end);
     const isNow = (curWeek === week) && nowMin >= s && nowMin <= e;
-    h += '<div class="tcell' + (isNow ? ' now' : '') + '"><div class="tn">' + p.n + '</div><div class="tt">' + p.start + '</div><div class="tt">' + p.end + '</div></div>';
+    /* 节次时间是可以在设置里清空的，解析出来的跨节中间节也常常是空串，
+       直接拼会把 "undefined" 画到时间列上。 */
+    h += '<div class="tcell' + (isNow ? ' now' : '') + '"><div class="tn">' + p.n + '</div><div class="tt">' + (p.start || '') + '</div><div class="tt">' + (p.end || '') + '</div></div>';
   });
   h += '</div>';
 
@@ -1813,6 +1829,19 @@ function renderGrid() {
     h += '</div>';
   }
   $('#gridBody').innerHTML = h;
+  /* 整周没有课：格子空着容易让人以为是加载失败，给一句说明 + 一个入口。
+     用绝对定位浮在滚动区里，不参与 #gridBody 的 flex 布局，不会把列宽挤变形。 */
+  if (!active.length) {
+    const box = document.createElement('div');
+    box.className = 'gempty';
+    const hasAny = S.courses.length > 0;
+    box.innerHTML = hasAny
+      ? '<div class="ge-t">这一周没有课</div><div class="ge-s">换一周看看，或点右上角 ＋ 添加一门</div>'
+      : '<div class="ge-t">还没有课程</div><div class="ge-s">' +
+        (isNative() ? '点右上角 ⬇ 从教务系统导入，多数学校需要先连校园网' : '点右上角 ⬇ 导入 Excel，或点 ＋ 手动添加') +
+        '</div>';
+    $('#gridScroll').appendChild(box);
+  }
 
   // 第二遍：块已经排好版，按各自的真实宽高算字号与行数。
   // 先把所有块的尺寸一次读完（一次布局），再统一写样式，避免逐个读写来回触发重排。
@@ -2369,11 +2398,43 @@ function parseZwGrid(html) {
         });
         lines.push(cur);
         const ps = lines.map(x => x.replace(/\u00a0/g, ' ').trim()).filter(Boolean);
-        // ★ 每 4 行一门课（课名 / 老师 / 周次(节次) / 教室）
-        for (let i = 0; i + 3 < ps.length; i += 4) {
-          const name = ps[i], teacher = cleanTeacher(ps[i + 1]);
-          const weekLine = ps[i + 2], room = ps[i + 3];
-          if (!name || /^\d+$/.test(name)) continue;
+        /* 一个格子里可能塞多门课，每门课一般 4 行：课名 / 老师 / 周次(节次) / 教室。
+           但教室行经常整行缺失（还没排教室、线上课），固定按 4 行切会让后面所有课错位
+           （课名被当成老师、周次被当成教室）。所以改成以「周次行」为锚点切块：
+           周次行上面的是课名与老师，下面一行如果像教室就收下，否则直接进下一门课。 */
+        const isWeekLine = s => /周/.test(s) || /\[\s*\d{1,2}\s*[-–—~至]\s*\d{1,2}\s*\]\s*节/.test(s);
+        /* 教室行判定保守一点：要短，并且带数字（A302 / 15-02）或以「楼/室/馆/场/中心/线上/网络」结尾。
+           光看关键词会把「实验化学」这种课名误当教室。 */
+        const isRoomLike = s => s.length <= 30 && (/[\d]/.test(s) || /(楼|室|馆|场|机房|中心|线上|网络|校区)$/.test(s));
+        let i = 0;
+        while (i < ps.length) {
+          const name = ps[i];
+          // 从课名下一行开始找周次行；连周次行都找不到就说明这个格子结构不认识，收工
+          let j = i + 1;
+          while (j < ps.length && !isWeekLine(ps[j])) j++;
+          if (j >= ps.length) {
+            /* 整个格子里没有任何周次行（老版教务系统不写周次时会这样）。
+               与其把剩下的行全丢掉，不如按「课名 + 老师 + 教室」收一门课，
+               周次留空 = 每周都上，用户能看见并自己改。 */
+            if (name && !/^\d+$/.test(name)) {
+              const rest = ps.slice(i + 1);
+              const room = rest.length && isRoomLike(rest[rest.length - 1]) ? rest[rest.length - 1] : '';
+              const teacher = cleanTeacher(rest.slice(0, rest.length - (room ? 1 : 0)).join('，'));
+              const bt = bigTimes[bi - 1] || {};
+              courses.push({
+                id: uid(), name, teacher, room, day,
+                s: bt.lo != null ? bt.lo : lo, e: bt.hi != null ? bt.hi : hi,
+                weeks: null, color: '', note: '', roomShort: shortRoom(room)
+              });
+            }
+            break;
+          }
+          const teacher = j > i + 1 ? cleanTeacher(ps.slice(i + 1, j).join('，')) : '';
+          const weekLine = ps[j];
+          let k = j + 1;
+          const room = (k < ps.length && !isWeekLine(ps[k]) && isRoomLike(ps[k])) ? ps[k] : '';
+          if (room) k++;
+          if (!name || /^\d+$/.test(name)) { i = k; continue; }
           const weeks = parseWeeks(weekLine);
           let s = null, e = null;
           const pm = /\[\s*(\d{1,2})\s*[-–—]\s*(\d{1,2})\s*\]\s*节/.exec(weekLine);
@@ -2384,6 +2445,7 @@ function parseZwGrid(html) {
             e = bt.hi != null ? bt.hi : hi;
           }
           courses.push({ id: uid(), name, teacher, room, day, s, e, weeks, color: '', note: '', roomShort: shortRoom(room) });
+          i = k;
         }
       });
     });
@@ -2639,7 +2701,12 @@ const FIELD_KEYS = {
   teacher: ['任课教师','教师','老师','授课教师','主讲教师','任课老师'],
   weeks:   ['周次','上课周次','起止周','周数','教学周'],
   day:     ['星期','星期几','周几','上课星期','上课日期'],
-  periods: ['节次','上课节次','节','时间','上课时间'],
+  /* 「节次」只认节次类表头。以前这里还包含「时间」「上课时间」，
+     而 FIELD_KEYS 是按声明顺序猜列的，periods 排在 time 前面，
+     于是「上课时间 = 08:00-09:40」这种列会被当成节次列，
+     parsePeriodVal 读成第 8-40 节 —— 导入后整张课表都错位。
+     时间类表头交给下面的 time 键，没有节次列时按默认 1-2 节处理。 */
+  periods: ['节次', '上课节次', '节'],
   room:    ['教室','上课地点','上课教室','地点','教学地点','场地'],
   time:    ['上课时间','时间']
 };
@@ -2741,9 +2808,12 @@ function parseDayVal(s) {
 }
 function parsePeriodVal(s) {
   s = String(s).replace(/[\[\]［］第节]/g, ' ').trim();
-  let m = /(\d{1,2})\s*[-–—~至]\s*(\d{1,2})/.exec(s);
+  /* 只取第一段：「1-2,3-4」表示两门课共用一格，不能整体读成 1-4 节。
+     以前直接对整个字符串取第一处匹配，多段写法会跨 4 节显示。 */
+  const seg = s.split(/[,，;；、]/)[0];
+  let m = /(\d{1,2})\s*[-–—~至]\s*(\d{1,2})/.exec(seg);
   if (m) return [+m[1], +m[2]];
-  const all = s.match(/\d{1,2}/g);
+  const all = seg.match(/\d{1,2}/g);
   if (all && all.length >= 2) return [+all[0], +all[all.length - 1]];
   if (all && all.length === 1) return [+all[0], +all[0]];
   return null;
@@ -2899,7 +2969,10 @@ function doImport() {
   R.notes.forEach(n => target.notes.push(n));
 
   const st = target.settings;
-  if (R.periods && R.periods.length) st.periods = R.periods;
+  /* 只有课表型（格子里写着节次）或教务脚本给了真实作息时才覆盖节次表；
+     明细表（每行一门课）的 periods 只是 DEFAULT_PERIODS 的副本，
+     无条件写进去会把用户自己调过的作息冲掉。 */
+  if (R.periods && R.periods.length && R.kind !== 'list') st.periods = R.periods;
   if (start) st.termStart = start;
   if (R.meta) {
     st.semester = R.meta.semester || st.semester;
@@ -2967,7 +3040,7 @@ function renderToday() {
   const weekEvents = (S.events || []).filter(e => e.date >= from && e.date <= to);
   const cnt = S.courses.filter(c => isActive(c, week)).length;
   h += '<div class="card" style="margin-bottom:12px"><h3>' + (week === wk ? '本周' : '第 ' + week + ' 周') +
-    '（' + mon.getMonth() + '/' + mon.getDate() + ' - ' + lastD.getMonth() + '/' + lastD.getDate() + '）</h3>' +
+    '（' + (mon.getMonth() + 1) + '/' + mon.getDate() + ' - ' + (lastD.getMonth() + 1) + '/' + lastD.getDate() + '）</h3>' +
     '<div class="muted">共 ' + cnt + ' 节课' +
     (weekEvents.length ? '　·　' + weekEvents.length + ' 条日程' : '') + '</div></div>';
   for (let i = 0; i < days; i++) {
@@ -3248,23 +3321,24 @@ async function syncCoursesToCal(remindMinutes) {
   // 收集所有要写的事件，先生成清单（内存里算好，不中途插错）
   const plan = [];   // {uid, name, begin, end, location, description, remind}
   t.courses.forEach(c => {
-    const ps = periods.find(x => x.n === c.s), pe = periods.find(x => x.n === c.e);
-    if (!ps || !pe || !ps.start || !pe.end) return;
+    /* 同 ICS 导出：课程单独设过时间就按它自己的钟点写进日历 */
+    const ct = courseTime(c);
+    if (!ct.start || !ct.end) return;
     let weeks = (c.weeks && c.weeks.length) ? c.weeks.slice() : null;
     if (!weeks) { weeks = []; for (let i = 1; i <= totalW; i++) weeks.push(i); }
     weeks.forEach(w => {
       if (!w || w < 1 || w > 200) return;
       const d = addDays(mon, (w - 1) * 7 + (c.day - 1));
       if (!d) return;
-      const begin = ymd(d) + 'T' + ps.start + ':00';
-      const end = ymd(d) + 'T' + pe.end + ':00';
+      const begin = ymd(d) + 'T' + ct.start + ':00';
+      const end = ymd(d) + 'T' + ct.end + ':00';
       plan.push({
         uid: c.id + '-w' + w,
         name: c.name,
         begin: begin, end: end,
         location: c.room || '',
         description: [c.teacher ? '教师：' + c.teacher : '',
-          '第 ' + c.s + '-' + c.e + ' 节（' + ps.start + '-' + pe.end + '）',
+          '第 ' + c.s + '-' + c.e + ' 节（' + ct.start + '-' + ct.end + '）',
           '第 ' + w + ' 周 星期' + (DAY_SHORT[c.day] || c.day)].filter(Boolean).join('\n'),
         remind: rm
       });
@@ -3536,9 +3610,16 @@ async function fetchLatestRelease(ms) {
     try {
       const j = await fetchJSON(p + UPDATE_API, ms);
       if (!j || !j.tag_name) { lastErr = '返回内容无法识别'; continue; }
-      const apk = (j.assets || []).find(a => /\.apk$/i.test(a.name || '')) || {};
+      const ver = String(j.tag_name).replace(/^v/i, '');
+      /* 同一个 Release 里现在有两个安装包：带版本号的那个，和固定名 latest（给网页下载按钮
+         永远指向最新版用）。这里必须挑带版本号的那个 —— 拿 latest 去显示
+         「QingJian-CourseTable-latest.apk」既对不上版本，也容易让人以为下错了。 */
+      const apks = (j.assets || []).filter(a => /\.apk$/i.test(a.name || ''));
+      const apk = apks.find(a => !/latest/i.test(a.name) && a.name.indexOf(ver) >= 0)
+        || apks.find(a => !/latest/i.test(a.name))
+        || apks[0] || {};
       return {
-        version: String(j.tag_name).replace(/^v/i, ''),
+        version: ver,
         notes: plainNotes(j.body),
         page: j.html_url || ('https://github.com/' + UPDATE_REPO + '/releases'),
         assetUrl: apk.browser_download_url || '',
@@ -4105,14 +4186,16 @@ function buildICS() {
   L.push('X-WR-CALNAME:' + icsEsc(t.name));
   let events = 0;
   t.courses.forEach(c => {
-    const ps = periods.find(x => x.n === c.s), pe = periods.find(x => x.n === c.e);
-    if (!ps || !pe || !ps.start || !pe.end) return;
+    /* 用 courseTime 而不是只查节次表：课程如果单独设过时间（手动添加里可以改），
+       导出到系统日历时必须按它自己的钟点，否则日历里的时间是错的。 */
+    const ct = courseTime(c);
+    if (!ct.start || !ct.end) return;
     let weeks = (c.weeks && c.weeks.length) ? c.weeks.slice() : null;
     if (!weeks) { weeks = []; for (let i = 1; i <= totalW; i++) weeks.push(i); }
     weeks.forEach(w => {
       if (!w || w < 1 || w > 200) return;
       const d = addDays(mon, (w - 1) * 7 + (c.day - 1));
-      const ds = icsLocal(d, ps.start), de = icsLocal(d, pe.end);
+      const ds = icsLocal(d, ct.start), de = icsLocal(d, ct.end);
       if (!ds || !de) return;
       events++;
       L.push('BEGIN:VEVENT');
@@ -4124,7 +4207,7 @@ function buildICS() {
       if (c.room) L.push('LOCATION:' + icsEsc(c.room));
       const desc = [
         c.teacher ? '教师：' + c.teacher : '',
-        '第 ' + c.s + '-' + c.e + ' 节（' + ps.start + '-' + pe.end + '）',
+        '第 ' + c.s + '-' + c.e + ' 节（' + ct.start + '-' + ct.end + '）',
         '第 ' + w + ' 周 星期' + DAY_SHORT[c.day],
         c.note ? '备注：' + c.note : ''
       ].filter(Boolean).join('\n');
@@ -4184,14 +4267,23 @@ let editingId = null;
 function openEdit(id, preset) {
   editingId = id || null;
   const c = id ? S.courses.find(x => x.id === id) : null;
-  const base = c || preset || { name: '', teacher: '', room: '', day: 1, s: 1, e: 2, weeks: null, color: '', note: '' };
+  /* 添加时的默认星期：优先用「今天」——学生在课表页点 ＋，十有八九是要记今天这节课；
+     今天超出当前显示范围（隐藏周末的周六日）就回落到周一。 */
+  const dayN = S.global.showWeekend === false ? 5 : 7;
+  const td = new Date();
+  const todayDay = td.getDay() === 0 ? 7 : td.getDay();
+  const defDay = todayDay <= dayN ? todayDay : 1;
+  const base = c || preset || { name: '', teacher: '', room: '', day: defDay, s: 1, e: 2, weeks: null, color: '', note: '' };
   $('#seTitle').textContent = c ? '编辑课程' : '添加课程';
   $('#fName').value = base.name || '';
   $('#fTeacher').value = base.teacher || '';
   $('#fRoom').value = base.room || '';
   $('#fNote').value = base.note || '';
   $('#fWeeks').value = (base.weeks && base.weeks.length) ? weeksText(base.weeks).replace(/ 周/g, '').replace(/，/g, ',') : '';
-  const days = S.global.showWeekend === false ? 5 : 7;
+  /* 编辑弹窗永远给全 7 天：关掉「显示周末」只是不在课表里画周六日，
+     但如果这门课本来就排在周末，只渲染 5 个 chip 就没有任何选中项，
+     保存时兜底成周一，等于把这门课悄悄挪到了周一。 */
+  const days = 7;
   $('#fDay').innerHTML = DAY_SHORT.slice(1, days + 1).map((d, i) =>
     '<div class="chip' + (base.day === i + 1 ? ' on' : '') + '" data-d="' + (i + 1) + '">' + d + '</div>').join('');
   $$('#fDay .chip').forEach(el => el.onclick = () => {
@@ -4304,7 +4396,10 @@ function saveEdit() {
   let e = Math.max(1, Math.min(capN, Math.round(+$('#fE').value) || 1));
   if (s > e) { const t = s; s = e; e = t; }
   const dayEl = $('#fDay .chip.on');
-  const day = dayEl ? +dayEl.dataset.d : 1;
+  /* 兜底不能写死周一：万一 chip 没渲染出来（老数据、异常状态），
+     编辑一门课就应该保留它原来的星期，而不是把它挪到周一。 */
+  const oldC = editingId ? activeTable().courses.find(x => x.id === editingId) : null;
+  const day = dayEl ? +dayEl.dataset.d : (oldC ? oldC.day : 1);
   const weeks = parseWeeks($('#fWeeks').value);
   const colorEl = $('#fPalette .pd.on');
   /* 自定义时间：两个都填且合法才算数；只填一个就当没填（免得存进去半天时间） */
@@ -5050,11 +5145,15 @@ function uniApply(res) {
   const courses = list.map(c => {
     const room = (c.position || '').trim();
     const w = (c.weeks && c.weeks.length) ? c.weeks.map(x => +x).filter(x => x >= 1 && x <= 200) : null;
+    const s0 = Math.max(1, +c.startSection || 1);
+    const e0 = Math.max(s0, +c.endSection || s0);
     return {
       id: uid(), name: (c.name || '').trim(), teacher: (c.teacher || '').trim(), room: room,
       day: Math.max(1, Math.min(7, +c.day || 1)),
-      s: Math.max(1, +c.startSection || 1), e: Math.max(1, +c.endSection || 1),
-      weeks: (w && w.length) ? w : [1],
+      s: s0, e: e0,
+      /* 脚本没给周次时按「每周都上」处理（null）。以前填的是 [1]，
+         结果这类课只在第 1 周出现，第 2 周起就整门消失。 */
+      weeks: (w && w.length) ? w : null,
       color: '', note: '', roomShort: shortRoom(room)
     };
   });
@@ -5141,8 +5240,8 @@ function exportPNG() {
     g.font = font(20, 600); g.textAlign = 'center';
     g.fillText(String(periods[i].n), gx + tw / 2, y + 12);
     g.font = font(16); 
-    g.fillText(periods[i].start, gx + tw / 2, y + 40);
-    g.fillText(periods[i].end, gx + tw / 2, y + 62);
+    g.fillText(periods[i].start || '', gx + tw / 2, y + 40);
+    g.fillText(periods[i].end || '', gx + tw / 2, y + 62);
     g.textAlign = 'left';
   }
   const bottom = top + periods.length * rowH;
@@ -5174,13 +5273,15 @@ function exportPNG() {
         let ty = y + 9;
         g.fillStyle = '#fff';
         g.font = font(18, 700);
-        ty = wrap(g, c.name, x + 7, ty, w - 14, 22);
-        if (c.room) { g.font = font(15); ty = wrap(g, c.roomShort || c.room, x + 7, ty + 3, w - 14, 19); }
+        // 边界留在色块底部上方 5px，课名再长也不越界压到下一节
+        const maxY = y + hh - 5;
+        ty = wrap(g, c.name, x + 7, ty, w - 14, 22, maxY);
+        if (c.room && ty + 19 <= maxY) { g.font = font(15); ty = wrap(g, c.roomShort || c.room, x + 7, ty + 3, w - 14, 19, maxY); }
         if (c.teacher && hh > 150) {
           g.font = font(15);
           const lines = wrapCount(g, c.teacher, w - 14);
           g.fillText('', 0, 0);
-          wrap(g, c.teacher, x + 7, y + hh - 9 - (lines - 1) * 19 - 19 + 19, w - 14, 19);
+          wrap(g, c.teacher, x + 7, y + hh - 9 - (lines - 1) * 19 - 19 + 19, w - 14, 19, maxY);
         }
       });
     });
@@ -5202,12 +5303,19 @@ function rr(g, x, y, w, h, r) {
   g.arcTo(x, y, x + w, y, r);
   g.closePath();
 }
-function wrap(g, text, x, y, maxW, lh) {
+/* maxY（可选）：画到这个 y 就不再往下画。课名最长 30 字、课程块可能只占一节高，
+   不设上限的话文字会溢出色块，压住下一节甚至水印。 */
+function wrap(g, text, x, y, maxW, lh, maxY) {
   const chars = String(text).split('');
   let line = '', yy = y;
   for (let i = 0; i < chars.length; i++) {
     const t = line + chars[i];
-    if (g.measureText(t).width > maxW && line) { g.fillText(line, x, yy); yy += lh; line = chars[i]; }
+    if (g.measureText(t).width > maxW && line) {
+      g.fillText(line, x, yy); yy += lh;
+      // 已经画满这个块就不再继续，避免文字跑到色块外面
+      if (maxY && yy + lh > maxY) return yy;
+      line = chars[i];
+    }
     else line = t;
   }
   if (line) { g.fillText(line, x, yy); yy += lh; }
